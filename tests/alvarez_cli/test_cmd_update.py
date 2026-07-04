@@ -39,6 +39,23 @@ def mock_args():
     return SimpleNamespace()
 
 
+# `alvarez update` is disabled in the Alvarez fork (no upstream/release
+# channel yet) — cmd_update exits 1 before reaching any of the logic these
+# tests cover. See the re-enable note in cmd_update (alvarez_cli/main.py);
+# unskip these when the update channel is re-pointed at the Alvarez origin.
+update_disabled = pytest.mark.skip(
+    reason="`alvarez update` is disabled in the Alvarez fork — see cmd_update in alvarez_cli/main.py"
+)
+
+
+def test_update_is_disabled_in_fork(mock_args, capsys):
+    """cmd_update refuses with exit 1 and the disabled notice."""
+    with pytest.raises(SystemExit) as exc:
+        cmd_update(mock_args)
+    assert exc.value.code == 1
+    assert "disabled" in capsys.readouterr().out
+
+
 # ---------------------------------------------------------------------------
 # Managed-uv compatibility for tests that patch shutil.which
 # ---------------------------------------------------------------------------
@@ -156,6 +173,7 @@ class TestCmdUpdateTermuxUvBootstrap:
         mock_run.assert_not_called()
 
 
+@update_disabled
 class TestCmdUpdateBranchFallback:
     """cmd_update falls back to main when current branch has no remote counterpart."""
 
@@ -378,6 +396,7 @@ class TestCmdUpdateBranchFallback:
             assert "API keys require manual entry" in captured.out
 
 
+@update_disabled
 class TestCmdUpdateMigrationPrompt:
     """The config-migration prompt names what changed and skips the prompt
     entirely when only the config format version moved.
@@ -455,6 +474,7 @@ class TestCmdUpdateMigrationPrompt:
             assert "display.new_widget" in out
 
 
+@update_disabled
 class TestCmdUpdateProfileSkillSync:
     """cmd_update syncs bundled skills to all profiles, including the active one.
 
@@ -530,6 +550,7 @@ class TestCmdUpdateProfileSkillSync:
         assert default_p.path in synced_paths
 
 
+@update_disabled
 class TestCmdUpdateBranchFlag:
     """``alvarez update --branch <name>`` targets the requested branch.
 
@@ -673,6 +694,7 @@ class TestCmdUpdateBranchFlag:
         assert "nonexistent" in out
 
 
+@update_disabled
 class TestCmdUpdateCheckBranchFlag:
     """``alvarez update --check --branch <name>`` honors the branch override.
 

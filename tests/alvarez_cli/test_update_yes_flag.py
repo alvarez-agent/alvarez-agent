@@ -12,7 +12,15 @@ import subprocess
 from types import SimpleNamespace
 from unittest.mock import patch
 
+import pytest
+
 from alvarez_cli.main import cmd_update
+
+# See test_update_is_disabled_in_fork in test_cmd_update.py — unskip when the
+# update channel is re-pointed at the Alvarez origin.
+update_disabled = pytest.mark.skip(
+    reason="`alvarez update` is disabled in the Alvarez fork — see cmd_update in alvarez_cli/main.py"
+)
 
 
 def _make_run_side_effect(
@@ -47,6 +55,7 @@ def _make_run_side_effect(
     return side_effect
 
 
+@update_disabled
 class TestUpdateYesConfigMigration:
     """--yes auto-answers the config-migration prompt and skips API-key prompts."""
 

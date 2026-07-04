@@ -6,6 +6,32 @@ Informal working doc. Not a spec, just enough to start cutting.
 
 Running record of refactor changes as they land. Newest first.
 
+### 2026-07-03 — test suite caught up with the platform strip-down (12 failures)
+
+Tests still assuming the multi-platform world, sorted per test:
+
+- **Deleted** (covered removed platforms): `test_tools_config.py` —
+  homeassistant-platform, whatsapp-includes-web, feishu-doc-and-drive tests;
+  `test_setup_openclaw_migration.py` — WHATSAPP_ENABLED gateway summary test.
+- **Updated to Telegram-only expectations**: `TestPlatformToolsetConsistency`
+  now checks the surviving platforms ({cli, telegram, webhook, api_server,
+  cron} — the PLATFORMS registry intentionally still lists stripped platforms
+  for legacy-config migration) and asserts `alvarez-gateway` includes exactly
+  `{alvarez-telegram, alvarez-webhook}`; the openclaw gateway-summary test now
+  asserts a leftover DISCORD_BOT_TOKEN does *not* resurface Discord.
+- **Skipped, not deleted** (`test_cmd_update.py`, `test_update_yes_flag.py`,
+  17 tests): they fail because `alvarez update` is disabled (exit 1, no
+  upstream channel), not because of platforms. Marked skip with a pointer at
+  cmd_update's re-enable note; new `test_update_is_disabled_in_fork` covers
+  the disabled behavior itself.
+- **Fixed two order-dependent tests** (failed only in full-suite runs):
+  `test_goals.py` fixture now pins `alvarez_state.DEFAULT_DB_PATH` (frozen at
+  import time, so goals tests had been writing into the real
+  ~/.alvarez/state.db — leaked rows cleaned out); the tools_config
+  composite-recovery test's fake composite now lists `read_terminal`/
+  `close_terminal`, which importing model_tools adds to the `terminal`
+  toolset.
+
 ### 2026-07-03 — config migration scrubs retired toolsets ("Unknown toolsets: messaging")
 
 Old/imported configs still list toolsets removed in the strip-down
