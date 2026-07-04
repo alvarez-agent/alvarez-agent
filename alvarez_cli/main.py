@@ -11042,7 +11042,7 @@ _BUILTIN_SUBCOMMANDS = frozenset(
         "model", "pairing", "pets", "plugins", "postinstall", "profile",
         "project", "proxy",
         "prompt-size",
-        "send", "sessions", "setup",
+        "send", "sessions", "setup", "soul",
         "skills", "slack", "status", "tools", "uninstall", "update",
         "version", "webhook", "whatsapp", "whatsapp-cloud", "chat", "secrets", "security",
         # Help-ish invocations — plugin commands not being listed in
@@ -11949,6 +11949,26 @@ def main():
         _register_pets_cli(pets_parser)
     except Exception as _exc:
         logging.getLogger(__name__).debug("pets CLI wiring failed: %s", _exc)
+
+    # =========================================================================
+    # soul command — swap the agent personality (SOUL.md variants)
+    # =========================================================================
+    soul_parser = subparsers.add_parser(
+        "soul",
+        help="Show, save, and switch Alvarez personalities (SOUL.md)",
+        description=(
+            "Manage named SOUL.md variants in $ALVAREZ_HOME/souls/. "
+            "`alvarez soul save work` keeps the current personality, "
+            "`alvarez soul use work` switches to it. SOUL.md is re-read "
+            "every message, so switches take effect immediately."
+        ),
+    )
+    try:
+        from alvarez_cli.soul import register_cli as _register_soul_cli
+
+        _register_soul_cli(soul_parser)
+    except Exception as _exc:
+        logging.getLogger(__name__).debug("soul CLI wiring failed: %s", _exc)
 
     # =========================================================================
     # journey command — learned skills + memories over time, in the terminal

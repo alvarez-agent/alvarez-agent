@@ -6,6 +6,16 @@ Informal working doc. Not a spec, just enough to start cutting.
 
 Running record of refactor changes as they land. Newest first.
 
+### 2026-07-03 — `alvarez soul`: personality swap command
+
+New `alvarez soul` subcommand (alvarez_cli/soul.py, wired in main.py next to
+`pets`, added to `_BUILTIN_SUBCOMMANDS`). Manages named SOUL.md variants in
+`$ALVAREZ_HOME/souls/*.md`: `show` (default), `list` (* = active), `save
+<name> [--force]`, `use <name>`, `delete <name>`. `use` auto-stashes an
+unsaved live SOUL.md to `souls/_previous.md` so nothing is lost. No loader
+changes needed — SOUL.md is already re-read every message, so switches are
+immediate. Tests: tests/alvarez_cli/test_soul.py (5, passing).
+
 ### 2026-07-03 — change-list round 1: full Nous/hermes separation + field-test fixes
 
 Executed `mailbox/Alvarez Change List.md` (projects wiki). Version is now
