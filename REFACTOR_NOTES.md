@@ -6,6 +6,20 @@ Informal working doc. Not a spec, just enough to start cutting.
 
 Running record of refactor changes as they land. Newest first.
 
+### 2026-07-03 — config migration scrubs retired toolsets ("Unknown toolsets: messaging")
+
+Old/imported configs still list toolsets removed in the strip-down
+(`messaging`, plus the `hermes-discord/-slack/-signal/-whatsapp/-qqbot/
+-homeassistant` platform toolsets), which warned "Unknown toolsets" at every
+startup. New `REMOVED_TOOLSETS` in toolsets.py; migrate_config() (always-run
+section, alvarez_cli/config.py) drops those names from `platform_toolsets`,
+deleting a platform entry entirely when all of its toolsets were retired
+(user-set empty lists are left alone). `_config_version` bumped 32 → 33 so
+existing installs migrate on next update/startup. Verified on Ken's live
+config (backup taken): scrub is idempotent, zero invalid toolsets remain.
+Known issue: 10 pre-existing test failures from strip-down leftovers
+(tests still referencing removed platforms) — unrelated, tracked separately.
+
 ### 2026-07-03 — Telegram auto-setup gated on onboarding URL + magenta prompts
 
 Field-test fixes from Ken's setup run. (1) The setup wizard offered "Automatic

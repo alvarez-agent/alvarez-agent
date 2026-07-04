@@ -90,6 +90,21 @@ _ALVAREZ_WEBHOOK_SAFE_TOOLS = [
 ]
 
 
+# Toolsets that existed upstream but were removed in the Alvarez strip-down.
+# Old/imported configs still list them in platform_toolsets, which triggers
+# "Unknown toolsets" warnings at every startup — config migration scrubs them.
+REMOVED_TOOLSETS = frozenset({
+    "messaging",
+    # Platforms stripped in the fork — only Telegram remains.
+    "hermes-discord",
+    "hermes-homeassistant",
+    "hermes-qqbot",
+    "hermes-signal",
+    "hermes-slack",
+    "hermes-whatsapp",
+})
+
+
 # Core toolset definitions
 # These can include individual tools or reference other toolsets
 TOOLSETS = {

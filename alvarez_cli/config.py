@@ -3046,7 +3046,7 @@ DEFAULT_CONFIG = {
 
 
     # Config schema version - bump this when adding new required fields
-    "_config_version": 32,
+    "_config_version": 33,
 }
 
 # =============================================================================
@@ -5555,6 +5555,41 @@ def migrate_config(interactive: bool = True, quiet: bool = False) -> Dict[str, A
             if mcp_touched:
                 config["mcp_servers"] = raw_mcp_servers
                 _persist_migration(config)
+
+    # ── Always: drop toolsets removed in the Alvarez strip-down ──
+    # Upstream/imported configs still list e.g. `messaging` in
+    # platform_toolsets; the toolset no longer exists here, so every startup
+    # warned "Unknown toolsets: messaging". Scrub instead of warning forever.
+    try:
+        from toolsets import REMOVED_TOOLSETS
+
+        config = read_raw_config()
+        pts = config.get("platform_toolsets")
+        if isinstance(pts, dict):
+            dropped: set = set()
+            for platform, names in list(pts.items()):
+                if not isinstance(names, list):
+                    continue
+                kept = [n for n in names if n not in REMOVED_TOOLSETS]
+                if len(kept) != len(names):
+                    dropped.update(set(names) - set(kept))
+                    if kept:
+                        pts[platform] = kept
+                    else:
+                        # Every toolset was retired → the platform itself was
+                        # stripped from the fork; drop the whole entry.
+                        del pts[platform]
+            if dropped:
+                _persist_migration(config)
+                msg = (
+                    "Removed retired toolset(s) from platform_toolsets: "
+                    + ", ".join(sorted(dropped))
+                )
+                results["warnings"].append(msg)
+                if not quiet:
+                    print(f"  ✓ {msg}")
+    except Exception as _rm_ts_err:
+        logger.debug("removed-toolset scrub skipped: %s", _rm_ts_err)
 
     # ── Always: validate platform_toolsets after migration ──
     # A migration (or hand-edit) that leaves an invalid toolset name in
