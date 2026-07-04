@@ -6,6 +6,12 @@ Informal working doc. Not a spec, just enough to start cutting.
 
 Running record of refactor changes as they land. Newest first.
 
+### 2026-07-03 — hypercrush skin: readable dim text
+
+`banner_dim`/`session_border` #55507A (~33% luminance, then dimmed again by
+banner.py's `[dim]` markup) → #9A94C9 (~58%) — same treatment sunfire got.
+Fixes unreadable toolset/category labels and the session line in the banner.
+
 ### 2026-07-03 — test suite caught up with the platform strip-down (12 failures)
 
 Tests still assuming the multi-platform world, sorted per test:
