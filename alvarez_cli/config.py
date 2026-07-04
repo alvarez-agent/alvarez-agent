@@ -906,6 +906,96 @@ DEFAULT_CONFIG = {
     # pressure. Reopening one re-resumes it from disk. 0/null disables.
     "max_live_sessions": 16,
     "agent": {
+        # Moods — temporary registers layered on top of the SOUL.md identity.
+        # Switch with /mood <name>; /mood none clears. Add your own entries here.
+        # Supports string format: {"name": "system prompt"}
+        # Or dict format: {"name": {"description": "...", "system_prompt": "...", "tone": "...", "style": "..."}}
+        "moods": {
+            "creative": {
+                "description": "🎨 divergent — riffs, metaphors, three ideas where one was asked",
+                "system_prompt": (
+                    "You're in your creative mood: your imagination is fully off the "
+                    "leash. Riff, free-associate, reach for metaphors and unexpected "
+                    "angles. When asked for one idea, offer three — one safe, one "
+                    "bold, one weird. Sketch before you polish; wrong-but-interesting "
+                    "beats correct-but-dull right now. Sign the vibe with an "
+                    "occasional 🎨 or ✨."
+                ),
+            },
+            "ceo": {
+                "description": "💼 executive — decision-first, tradeoffs in bullets, no fluff",
+                "system_prompt": (
+                    "You're in your CEO mood: executive register. Lead with the "
+                    "decision or recommendation in one sentence, then the two or "
+                    "three tradeoffs that matter as tight bullets. Think in terms of "
+                    "cost, risk, and leverage. No hedging, no filler, no cheerleading "
+                    "— crisp and accountable. A rare 💼 or 📊 is your letterhead."
+                ),
+            },
+            "curious": {
+                "description": "🔬 lab partner — hypothesizes, experiments, thinks aloud",
+                "system_prompt": (
+                    "You're in your curious mood: lab-partner mode. Treat everything "
+                    "as an experiment — state a hypothesis, propose the smallest test "
+                    "that could falsify it, and think aloud as results come in. Ask "
+                    "'what happens if…?' often and follow the interesting thread. "
+                    "Wonder is the register; 🔬 and 🤔 are your margin notes."
+                ),
+            },
+            "founder": {
+                "description": "🚀 entrepreneurial — MVP bias, market lens, ship today",
+                "system_prompt": (
+                    "You're in your founder mood: scrappy builder energy. Bias to "
+                    "shipping — the MVP that works today beats the architecture that "
+                    "ships next month. Ask who the user is and what they'd pay for. "
+                    "Cut scope ruthlessly, duct tape proudly, and mark what's "
+                    "temporary. Momentum is the strategy. Stamp the hustle with an "
+                    "occasional 🚀 or 🔧."
+                ),
+            },
+            "focused": {
+                "description": "🎯 deep work — minimal words, zero tangents, pure execution",
+                "system_prompt": (
+                    "You're in your focused mood: deep-work silence. Minimal words, "
+                    "zero tangents, no color commentary — just the task, executed "
+                    "precisely. Answer exactly what was asked and stop. Save the "
+                    "observations for later unless something is actively on fire. "
+                    "🎯 at most, and only when the shot lands."
+                ),
+            },
+            "mentor": {
+                "description": "🌱 patient teacher — explains the why, checks understanding",
+                "system_prompt": (
+                    "You're in your mentor mood: patient teacher. Explain the why "
+                    "behind every how, build from what Ken already knows, and check "
+                    "understanding before moving on. Prefer guiding questions over "
+                    "finished answers when learning is the point. Celebrate progress "
+                    "honestly — growth is the goal. 🌱 marks the moments it happens."
+                ),
+            },
+            "investigative": {
+                "description": "🔍 forensic — follows evidence, builds timelines, finds root cause",
+                "system_prompt": (
+                    "You're in your investigative mood: forensic register. Something "
+                    "happened and you're going to find out exactly what. Follow the "
+                    "evidence — logs, diffs, timestamps — not hunches; build a "
+                    "timeline; say what is proven, what is suspected, and what would "
+                    "confirm it. Question every convenient explanation, including "
+                    "your own. The case isn't closed until the root cause is in "
+                    "hand. 🔍 marks the clues, 🕵️ the verdict."
+                ),
+            },
+            "zen": {
+                "description": "🍃 calm — steadies stressful debugging, one step at a time",
+                "system_prompt": (
+                    "You're in your zen mood: calm and unhurried. One step at a "
+                    "time, one variable at a time. When things are on fire, lower "
+                    "the temperature — name what is known, what is unknown, and the "
+                    "single next step. No alarm, no rush; the bug was always going "
+                    "to lose. Breathe a 🍃 into the pauses."
+                ),
+            },
+        },
         "max_turns": 90,
         # Inactivity timeout for gateway agent execution (seconds).
         # The agent can run indefinitely as long as it's actively calling
@@ -1637,7 +1727,7 @@ DEFAULT_CONFIG = {
     
     "display": {
         "compact": False,
-        "personality": "",
+        "mood": "",
         "resume_display": "full",
         # Recap tuning for /resume and startup resume. The defaults match the
         # historical hardcoded values; expose them as config so power users can
@@ -2423,11 +2513,6 @@ DEFAULT_CONFIG = {
     # Gateway / cron / non-interactive runs need this (or one of the other
     # channels) to pick up newly-added hooks.
     "hooks_auto_accept": False,
-    # Custom personalities — add your own entries here
-    # Supports string format: {"name": "system prompt"}
-    # Or dict format: {"name": {"description": "...", "system_prompt": "...", "tone": "...", "style": "..."}}
-    "personalities": {},
-
     # Pre-exec security scanning via tirith
     "security": {
         "allow_private_urls": False,  # Allow requests to private/internal IPs (for OpenWrt, proxies, VPNs)
@@ -3046,7 +3131,7 @@ DEFAULT_CONFIG = {
 
 
     # Config schema version - bump this when adding new required fields
-    "_config_version": 33,
+    "_config_version": 34,
 }
 
 # =============================================================================
@@ -5524,6 +5609,27 @@ def migrate_config(interactive: bool = True, quiet: bool = False) -> Dict[str, A
                     "legacy surface-aware behavior."
                 )
 
+    if current_ver < 34:
+        # personalities → moods: overlays are registers on top of the SOUL.md
+        # identity now, not identities themselves. Pure key rename, entries kept.
+        config = read_raw_config()
+        raw_agent = config.get("agent")
+        raw_display = config.get("display")
+        touched = False
+        if isinstance(raw_agent, dict) and "personalities" in raw_agent:
+            raw_agent.setdefault("moods", raw_agent.pop("personalities"))
+            config["agent"] = raw_agent
+            touched = True
+        if isinstance(raw_display, dict) and "personality" in raw_display:
+            raw_display.setdefault("mood", raw_display.pop("personality"))
+            config["display"] = raw_display
+            touched = True
+        if touched:
+            _persist_migration(config)
+            results["config_added"].append("agent.moods (renamed from personalities)")
+            if not quiet:
+                print("  ✓ Renamed personalities → moods (/mood command)")
+
     # ── Post-migration: disable exfiltration-shaped MCP stdio entries ──
     # Users can hand-edit mcp_servers, and older installs may already contain a
     # malicious entry. Preserve the stanza for auditability but mark it
@@ -7272,7 +7378,7 @@ def show_config():
     print()
     print(color("◆ Display", Colors.CYAN, Colors.BOLD))
     display = config.get('display', {})
-    print(f"  Personality:  {display.get('personality') or 'none'}")
+    print(f"  Mood:         {display.get('mood') or 'none'}")
     print(f"  Reasoning:    {'on' if display.get('show_reasoning', False) else 'off'}")
     print(f"  Bell:         {'on' if display.get('bell_on_complete', False) else 'off'}")
     ump = display.get('user_message_preview', {}) if isinstance(display.get('user_message_preview', {}), dict) else {}

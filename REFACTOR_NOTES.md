@@ -6,6 +6,28 @@ Informal working doc. Not a spec, just enough to start cutting.
 
 Running record of refactor changes as they land. Newest first.
 
+### 2026-07-04 — personalities → moods, Alvarez mood set
+
+SOUL.md is the identity now; the overlays are *moods* — registers layered on
+top of it (ephemeral_system_prompt composes additively with the cached SOUL.md
+prompt, so no loader changes). Renames: `agent.personalities` → `agent.moods`,
+`display.personality` → `display.mood`, `/personality` → `/mood` (CLI routing +
+kaomoji handler, gateway async handler, TUI server config.set/getter/session
+key/helpers, ui-tui session.ts + slashParity, locales `personality:` → `mood:`
+in all 16 files with en fully rewritten). Migration v33→34 renames the keys,
+entries preserved. The 14 stock upstream personas (catgirl, pirate, uwu…) are
+replaced by 8 Alvarez moods shipped in DEFAULT_CONFIG.agent.moods — creative
+🎨, ceo 💼, curious 🔬, founder 🚀, focused 🎯, mentor 🌱, investigative 🔍,
+zen 🍃 — dict
+format, single source of truth (cli.py's inline defaults now import from it;
+upstream's top-level DEFAULT_CONFIG["personalities"] was dead — it sat outside
+the agent section). Ken's live config: migrated, stock block dropped (all 14
+matched stock, none custom), active 'creative' carried over to the new creative
+mood prompt. Tests: test_personality_none.py → test_mood_none.py, new
+test_mood_migration.py; ~780 pass, only pre-existing order-dependent flakes
+remain (test_projects_rpc, test_subagent_child_mirror — fail on clean tree
+too). ui-tui rebuilt.
+
 ### 2026-07-03 — hypercrush skin: readable dim text
 
 `banner_dim`/`session_border` #55507A (~33% luminance, then dimmed again by

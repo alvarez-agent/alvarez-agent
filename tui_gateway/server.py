@@ -3003,16 +3003,16 @@ def _probe_config_health(cfg: dict) -> str:
     display_cfg = cfg.get("display")
     agent_cfg = cfg.get("agent")
     if isinstance(display_cfg, dict):
-        personality = str(display_cfg.get("personality", "") or "").strip().lower()
+        mood = str(display_cfg.get("mood", "") or "").strip().lower()
         if (
-            personality
-            and personality not in {"default", "none", "neutral"}
+            mood
+            and mood not in {"default", "none", "neutral"}
             and isinstance(agent_cfg, dict)
-            and agent_cfg.get("personalities") is None
+            and agent_cfg.get("moods") is None
         ):
             warnings.append(
-                "`display.personality` is set but `agent.personalities` is empty/null; "
-                "personality overlay will be skipped."
+                "`display.mood` is set but `agent.moods` is empty/null; "
+                "mood overlay will be skipped."
             )
     return " ".join(warnings).strip()
 
@@ -3044,8 +3044,8 @@ def _session_info(agent, session: dict | None = None) -> dict:
     session_key = str(
         (session or {}).get("session_key") or getattr(agent, "session_id", "") or ""
     )
-    cfg_personality = ((_load_cfg().get("display") or {}).get("personality") or "")
-    personality = (session or {}).get("personality", cfg_personality)
+    cfg_mood = ((_load_cfg().get("display") or {}).get("mood") or "")
+    mood = (session or {}).get("mood", cfg_mood)
     reasoning_config = getattr(agent, "reasoning_config", None)
     reasoning_effort = ""
     if (
@@ -3085,7 +3085,7 @@ def _session_info(agent, session: dict | None = None) -> dict:
         "skills": {},
         "cwd": cwd,
         "branch": _git_branch_for_cwd(cwd),
-        "personality": str(personality or ""),
+        "mood": str(mood or ""),
         "running": bool((session or {}).get("running")),
         "title": _session_live_title(session or {}, session_key) if session_key else "",
         "desktop_contract": DESKTOP_BACKEND_CONTRACT,
@@ -3691,7 +3691,7 @@ def _wire_callbacks(sid: str):
     set_secret_capture_callback(secret_cb)
 
 
-def _render_personality_prompt(value) -> str:
+def _render_mood_prompt(value) -> str:
     if isinstance(value, dict):
         parts = [value.get("system_prompt", "")]
         if value.get("tone"):
@@ -3702,39 +3702,39 @@ def _render_personality_prompt(value) -> str:
     return str(value)
 
 
-def _available_personalities(cfg: dict | None = None) -> dict:
+def _available_moods(cfg: dict | None = None) -> dict:
     try:
         from cli import load_cli_config
 
-        return (load_cli_config().get("agent") or {}).get("personalities", {}) or {}
+        return (load_cli_config().get("agent") or {}).get("moods", {}) or {}
     except Exception:
         try:
             from alvarez_cli.config import load_config as _load_full_cfg
 
-            return (_load_full_cfg().get("agent") or {}).get("personalities", {}) or {}
+            return (_load_full_cfg().get("agent") or {}).get("moods", {}) or {}
         except Exception:
             cfg = cfg or _load_cfg()
-            return (cfg.get("agent") or {}).get("personalities", {}) or {}
+            return (cfg.get("agent") or {}).get("moods", {}) or {}
 
 
-def _validate_personality(value: str, cfg: dict | None = None) -> tuple[str, str]:
+def _validate_mood(value: str, cfg: dict | None = None) -> tuple[str, str]:
     raw = str(value or "").strip()
     name = raw.lower()
     if not name or name in {"none", "default", "neutral"}:
         return "", ""
 
-    personalities = _available_personalities(cfg)
-    if name not in personalities:
-        names = sorted(personalities)
+    moods = _available_moods(cfg)
+    if name not in moods:
+        names = sorted(moods)
         available = ", ".join(f"`{n}`" for n in names)
-        base = f"Unknown personality: `{raw}`."
+        base = f"Unknown mood: `{raw}`."
         if available:
             base += f"\n\nAvailable: `none`, {available}"
         else:
-            base += "\n\nNo personalities configured."
+            base += "\n\nNo moods configured."
         raise ValueError(base)
 
-    return name, _render_personality_prompt(personalities[name])
+    return name, _render_mood_prompt(moods[name])
 
 
 def _prompt_text(value) -> str:
@@ -3748,12 +3748,12 @@ def _prompt_text(value) -> str:
     return str(value).strip()
 
 
-def _apply_personality_to_session(
-    sid: str, session: dict, new_prompt: str, personality: str = ""
+def _apply_mood_to_session(
+    sid: str, session: dict, new_prompt: str, mood: str = ""
 ) -> tuple[bool, dict | None]:
-    """Apply a personality change to an existing session without resetting history.
+    """Apply a mood change to an existing session without resetting history.
 
-    Updates the agent's ephemeral system prompt in-place so the new personality
+    Updates the agent's ephemeral system prompt in-place so the new mood
     takes effect on the next turn.  The cached base system prompt is left intact
     (ephemeral_system_prompt is appended at API-call time, not baked into the
     cache), which preserves prompt-cache hits.
@@ -3767,7 +3767,7 @@ def _apply_personality_to_session(
     """
     if not session:
         return False, None
-    session["personality"] = personality
+    session["mood"] = mood
 
     agent = session.get("agent")
     if agent:
@@ -3776,13 +3776,13 @@ def _apply_personality_to_session(
         # This prevents it from pattern-matching its prior style.
         if new_prompt:
             marker = (
-                "[System: The user has changed the assistant's personality. "
+                "[System: The user has changed the assistant's mood. "
                 "From this point forward, adopt the following persona and respond "
                 f"accordingly: {new_prompt}]"
             )
         else:
             marker = (
-                "[System: The user has cleared the personality overlay. "
+                "[System: The user has cleared the mood overlay. "
                 "From this point forward, respond in your normal default style.]"
             )
         with session["history_lock"]:
@@ -9940,7 +9940,7 @@ def _(rid, params: dict) -> dict:
             {"key": "terminal.cwd", "value": cwd, "cwd": cwd, "branch": _git_branch_for_cwd(cwd)},
         )
 
-    if key in {"prompt", "personality", "skin"}:
+    if key in {"prompt", "mood", "skin"}:
         try:
             cfg = _load_cfg()
             if key == "prompt":
@@ -9951,13 +9951,13 @@ def _(rid, params: dict) -> dict:
                     cfg["custom_prompt"] = value
                     nv = value
                 _save_cfg(cfg)
-            elif key == "personality":
+            elif key == "mood":
                 sid_key = params.get("session_id", "")
-                pname, new_prompt = _validate_personality(str(value or ""), cfg)
-                _write_config_key("display.personality", pname)
+                pname, new_prompt = _validate_mood(str(value or ""), cfg)
+                _write_config_key("display.mood", pname)
                 _write_config_key("agent.system_prompt", new_prompt)
                 nv = str(value or "none")
-                history_reset, info = _apply_personality_to_session(
+                history_reset, info = _apply_mood_to_session(
                     sid_key, session, new_prompt, pname
                 )
             else:
@@ -9966,7 +9966,7 @@ def _(rid, params: dict) -> dict:
                 if key == "skin":
                     _emit("skin.changed", "", resolve_skin())
             resp = {"key": key, "value": nv}
-            if key == "personality":
+            if key == "mood":
                 resp["history_reset"] = history_reset
                 if info is not None:
                     resp["info"] = info
@@ -10459,10 +10459,10 @@ def _(rid, params: dict) -> dict:
             rid,
             {"value": norm if norm in _INDICATOR_STYLES else _INDICATOR_DEFAULT},
         )
-    if key == "personality":
+    if key == "mood":
         return _ok(
             rid,
-            {"value": (_load_cfg().get("display") or {}).get("personality") or "none"},
+            {"value": (_load_cfg().get("display") or {}).get("mood") or "none"},
         )
     if key == "reasoning":
         cfg = _load_cfg()
@@ -12112,7 +12112,7 @@ def _mirror_slash_side_effects(sid: str, session: dict, command: str) -> str:
     # worker thread running agent.run_conversation is using.  Parity
     # with the session.compress / session.undo guards and the gateway
     # runner's running-agent /model guard.
-    _MUTATES_WHILE_RUNNING = {"model", "personality", "prompt", "compress"}
+    _MUTATES_WHILE_RUNNING = {"model", "mood", "prompt", "compress"}
     if name in _MUTATES_WHILE_RUNNING and session.get("running"):
         return f"session busy — /interrupt the current turn before running /{name}"
 
@@ -12120,9 +12120,9 @@ def _mirror_slash_side_effects(sid: str, session: dict, command: str) -> str:
         if name == "model" and arg and agent:
             result = _apply_model_switch(sid, session, arg)
             return result.get("warning", "")
-        elif name == "personality" and arg and agent:
-            pname, new_prompt = _validate_personality(arg, _load_cfg())
-            _apply_personality_to_session(sid, session, new_prompt, pname)
+        elif name == "mood" and arg and agent:
+            pname, new_prompt = _validate_mood(arg, _load_cfg())
+            _apply_mood_to_session(sid, session, new_prompt, pname)
         elif name == "prompt" and agent:
             cfg = _load_cfg()
             new_prompt = _prompt_text((cfg.get("agent") or {}).get("system_prompt", ""))

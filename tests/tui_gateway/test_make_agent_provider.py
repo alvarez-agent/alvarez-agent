@@ -157,8 +157,8 @@ def test_make_agent_provider_routing_defaults_when_unset():
         assert kwargs["provider_data_collection"] is None
 
 
-def test_make_agent_ignores_display_personality_without_system_prompt():
-    """The TUI matches the classic CLI: personality only becomes active once
+def test_make_agent_ignores_display_mood_without_system_prompt():
+    """The TUI matches the classic CLI: mood only becomes active once
     it has been saved to agent.system_prompt."""
 
     fake_runtime = {
@@ -173,9 +173,9 @@ def test_make_agent_ignores_display_personality_without_system_prompt():
     fake_cfg = {
         "agent": {
             "system_prompt": "",
-            "personalities": {"kawaii": "sparkle system prompt"},
+            "moods": {"kawaii": "sparkle system prompt"},
         },
-        "display": {"personality": "kawaii"},
+        "display": {"mood": "kawaii"},
         "model": {"default": "glm-5"},
     }
 
@@ -190,7 +190,7 @@ def test_make_agent_ignores_display_personality_without_system_prompt():
     ):
         from tui_gateway.server import _make_agent
 
-        _make_agent("sid-default-personality", "key-default-personality")
+        _make_agent("sid-default-mood", "key-default-mood")
 
         assert mock_agent.call_args.kwargs["ephemeral_system_prompt"] is None
 
@@ -250,18 +250,18 @@ def test_probe_config_health_flags_null_sections():
     assert "model" not in msg
 
 
-def test_probe_config_health_flags_null_personalities_with_active_personality():
+def test_probe_config_health_flags_null_moods_with_active_mood():
     from tui_gateway.server import _probe_config_health
 
     msg = _probe_config_health(
         {
-            "agent": {"personalities": None},
-            "display": {"personality": "kawaii"},
+            "agent": {"moods": None},
+            "display": {"mood": "kawaii"},
             "model": {},
         }
     )
-    assert "display.personality" in msg
-    assert "agent.personalities" in msg
+    assert "display.mood" in msg
+    assert "agent.moods" in msg
 
 
 def test_make_agent_tolerates_null_config_sections():
@@ -298,7 +298,7 @@ def test_make_agent_tolerates_null_config_sections():
         assert mock_agent.called
 
 
-def test_make_agent_tolerates_null_personalities_with_active_personality():
+def test_make_agent_tolerates_null_moods_with_active_mood():
     fake_runtime = {
         "provider": "openrouter",
         "base_url": "https://api.synthetic.new/v1",
@@ -309,15 +309,15 @@ def test_make_agent_tolerates_null_personalities_with_active_personality():
         "credential_pool": None,
     }
     cfg = {
-        "agent": {"personalities": None},
-        "display": {"personality": "kawaii"},
+        "agent": {"moods": None},
+        "display": {"mood": "kawaii"},
         "model": {"default": "glm-5"},
     }
 
     with (
         patch("tui_gateway.server._load_cfg", return_value=cfg),
         patch("tui_gateway.server._get_db", return_value=MagicMock()),
-        patch("cli.load_cli_config", return_value={"agent": {"personalities": None}}),
+        patch("cli.load_cli_config", return_value={"agent": {"moods": None}}),
         patch(
             "alvarez_cli.runtime_provider.resolve_runtime_provider",
             return_value=fake_runtime,
@@ -326,7 +326,7 @@ def test_make_agent_tolerates_null_personalities_with_active_personality():
     ):
         from tui_gateway.server import _make_agent
 
-        _make_agent("sid-null-personality", "key-null-personality")
+        _make_agent("sid-null-mood", "key-null-mood")
 
         assert mock_agent.called
         assert mock_agent.call_args.kwargs["ephemeral_system_prompt"] is None

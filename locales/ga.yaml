@@ -154,12 +154,12 @@ gateway:
     truncated_suffix:      "… (giorraithe; úsáid `alvarez kanban …` i do theirminéal le haghaidh aschur iomláin)"
     no_output:             "(gan aschur)"
 
-  personality:
+  mood:
     none_configured:       "Níl aon phearsantachtaí cumraithe in `{path}/config.yaml`"
     header:                "🎭 **Pearsantachtaí ar fáil**\n"
     none_option:           "• `none` — (gan forleagan pearsantachta)"
     item:                  "• `{name}` — {preview}"
-    usage:                 "\nÚsáid: `/personality <name>`"
+    usage:                 "\nÚsáid: `/mood <name>`"
     save_failed:           "⚠️ Theip ar shábháil athraithe pearsantachta: {error}"
     cleared:               "🎭 Pearsantacht glanta — ag úsáid iompair bunúsaigh an ghníomhaire.\n_(éifeachtach ón gcéad teachtaireacht eile)_"
     set_to:                "🎭 Pearsantacht socraithe go **{name}**\n_(éifeachtach ón gcéad teachtaireacht eile)_"

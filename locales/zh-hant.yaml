@@ -150,12 +150,12 @@ gateway:
     truncated_suffix:      "…（已截斷；如需完整輸出請在終端機執行 `alvarez kanban …`）"
     no_output:             "（無輸出）"
 
-  personality:
+  mood:
     none_configured:       "`{path}/config.yaml` 中未設定人格"
     header:                "🎭 **可用人格**\n"
     none_option:           "• `none` —（不套用人格覆寫）"
     item:                  "• `{name}` — {preview}"
-    usage:                 "\n用法：`/personality <name>`"
+    usage:                 "\n用法：`/mood <name>`"
     save_failed:           "⚠️ 儲存人格變更失敗：{error}"
     cleared:               "🎭 已清除人格 — 使用基礎代理行為。\n_（下一則訊息生效）_"
     set_to:                "🎭 人格已設定為 **{name}**\n_（下一則訊息生效）_"

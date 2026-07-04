@@ -150,12 +150,12 @@ gateway:
     truncated_suffix:      "… (切り詰めました; 完全な出力にはターミナルで `alvarez kanban …` を使用してください)"
     no_output:             "(出力なし)"
 
-  personality:
+  mood:
     none_configured:       "`{path}/config.yaml` に人格が設定されていません"
     header:                "🎭 **利用可能な人格**\n"
     none_option:           "• `none` — (人格オーバーレイなし)"
     item:                  "• `{name}` — {preview}"
-    usage:                 "\n使い方: `/personality <name>`"
+    usage:                 "\n使い方: `/mood <name>`"
     save_failed:           "⚠️ 人格変更の保存に失敗しました: {error}"
     cleared:               "🎭 人格をクリアしました — 基本のエージェント動作を使用します。\n_(次のメッセージから有効)_"
     set_to:                "🎭 人格を **{name}** に設定しました\n_(次のメッセージから有効)_"

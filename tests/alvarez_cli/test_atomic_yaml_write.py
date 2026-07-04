@@ -52,9 +52,9 @@ class TestAtomicYamlWrite:
         corrupting the entire config.
         """
         target = tmp_path / "config.yaml"
-        # Mirrors the default personalities + skin cursor shipped in cli.py.
+        # Mirrors the default moods + skin cursor shipped in cli.py.
         data = {
-            "personalities": {
+            "moods": {
                 "kawaii": "kawaii desu~! (◕‿◕) ★ ♪ ヽ(>∀<☆)ノ",
                 "catgirl": "nya~! (=^･ω･^=) ฅ^•ﻌ•^ฅ",
                 "surfer": "Cowabunga! 🤙 totally rad bro",

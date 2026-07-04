@@ -150,12 +150,12 @@ gateway:
     truncated_suffix:      "… (afgekap; gebruik `alvarez kanban …` in jou terminale vir volle uitvoer)"
     no_output:             "(geen uitvoer)"
 
-  personality:
+  mood:
     none_configured:       "Geen persoonlikhede opgestel in `{path}/config.yaml` nie"
     header:                "🎭 **Beskikbare Persoonlikhede**\n"
     none_option:           "• `none` — (geen persoonlikheidslaag)"
     item:                  "• `{name}` — {preview}"
-    usage:                 "\nGebruik: `/personality <name>`"
+    usage:                 "\nGebruik: `/mood <name>`"
     save_failed:           "⚠️ Kon nie persoonlikheidsverandering stoor nie: {error}"
     cleared:               "🎭 Persoonlikheid verwyder — basis-agentgedrag word gebruik.\n_(neem effek by die volgende boodskap)_"
     set_to:                "🎭 Persoonlikheid gestel op **{name}**\n_(neem effek by die volgende boodskap)_"

@@ -165,16 +165,16 @@ gateway:
     truncated_suffix:      "… (truncated; use `alvarez kanban …` in your terminal for full output)"
     no_output:             "(no output)"
 
-  personality:
-    none_configured:       "No personalities configured in `{path}/config.yaml`"
-    header:                "🎭 **Available Personalities**\n"
-    none_option:           "• `none` — (no personality overlay)"
+  mood:
+    none_configured:       "No moods configured in `{path}/config.yaml`"
+    header:                "🎭 **Available Moods**\n"
+    none_option:           "• `none` — (no mood overlay)"
     item:                  "• `{name}` — {preview}"
-    usage:                 "\nUsage: `/personality <name>`"
-    save_failed:           "⚠️ Failed to save personality change: {error}"
-    cleared:               "🎭 Personality cleared — using base agent behavior.\n_(takes effect on next message)_"
-    set_to:                "🎭 Personality set to **{name}**\n_(takes effect on next message)_"
-    unknown:               "Unknown personality: `{name}`\n\nAvailable: {available}"
+    usage:                 "\nUsage: `/mood <name>`"
+    save_failed:           "⚠️ Failed to save mood change: {error}"
+    cleared:               "🎭 Mood cleared — using base agent behavior.\n_(takes effect on next message)_"
+    set_to:                "🎭 Mood set to **{name}**\n_(takes effect on next message)_"
+    unknown:               "Unknown mood: `{name}`\n\nAvailable: {available}"
 
   profile:
     header:                "👤 **Profile:** `{profile}`"
