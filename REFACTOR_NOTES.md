@@ -6,6 +6,20 @@ Informal working doc. Not a spec, just enough to start cutting.
 
 Running record of refactor changes as they land. Newest first.
 
+### 2026-07-03 — Telegram auto-setup gated on onboarding URL + magenta prompts
+
+Field-test fixes from Ken's setup run. (1) The setup wizard offered "Automatic
+(recommended)" Telegram QR onboarding, but this fork has no hosted onboarding
+service (`DEFAULT_API_URL = ""` in alvarez_cli/telegram_managed_bot.py), so it
+always failed with a misleading "check your network". Added
+`onboarding_service_configured()` to telegram_managed_bot.py; setup.py
+(`_telegram_auto_available()`) and gateway.py's channel flow now skip the
+automatic option entirely unless `TELEGRAM_ONBOARDING_URL` is set, and
+`auto_setup_telegram_bot_result()` prints an accurate "no service configured"
+message if reached anyway. (2) Interactive prompt/header color switched from
+yellow to brand magenta: `prompt`/`prompt_yes_no`/`prompt_choice` fallback in
+setup.py, `prompt`/`print_header` in cli_output.py. Warnings stay yellow.
+
 ### 2026-07-03 — `alvarez soul`: personality swap command
 
 New `alvarez soul` subcommand (alvarez_cli/soul.py, wired in main.py next to
