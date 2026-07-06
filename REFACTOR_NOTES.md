@@ -6,6 +6,24 @@ Informal working doc. Not a spec, just enough to start cutting.
 
 Running record of refactor changes as they land. Newest first.
 
+### 2026-07-06 — First real CI run on PR #6: three leftover buckets
+
+Pushed `ci-cleanup`, opened PR #6. CI enumerated what local runs couldn't
+(a monolithic local full run drowns in order-dependent registry contamination —
+1134 "failures" that all pass in isolation and in CI's 8-way slices; that's a
+pre-existing test-isolation problem, out of scope here). Real remaining red:
+
+- **`tests/website/`** — deleted. Both files import scripts from the deleted
+  `website/` dir (`website/scripts/extract-skills.py` → FileNotFoundError).
+- **contributor-check workflow** — deleted (+ its `ci.yml` wiring). It greps
+  `scripts/release.py` for AUTHOR_MAP, but that file was deleted in the
+  strip-down, so any new contributor email fails forever. Restore only if a
+  release/attribution flow returns.
+- **osv-scanner** — `upload-sarif: false`. SARIF upload needs code scanning =
+  GitHub Advanced Security on private repos (repo is currently private; the
+  failure predates this branch — red on main's initial-commit run too).
+  Scan still runs; findings in the job log. Re-enable on going public.
+
 ### 2026-07-06 — Finish removing orphaned Nous-hosted plumbing (Workstream C)
 
 Ken's call: rather than xfail the 16 REAL_BUG tests from Workstream B, finish
