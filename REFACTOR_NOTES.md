@@ -6,6 +6,46 @@ Informal working doc. Not a spec, just enough to start cutting.
 
 Running record of refactor changes as they land. Newest first.
 
+### 2026-07-06 — Finish removing orphaned Nous-hosted plumbing (Workstream C)
+
+Ken's call: rather than xfail the 16 REAL_BUG tests from Workstream B, finish
+removing the orphaned Nous-hosted subsystems that dangled on deleted
+`alvarez_cli.auth` symbols (`resolve_nous_access_token`,
+`_nous_invoke_jwt_is_usable`). All of it could only ever talk to Nous infra
+(Portal / connector / NAS), so it's dead in this fork.
+
+- **relay self-provision** — dropped `self_provision_relay()` (+ `_post_provision`/
+  `_provision_url`) and the boot call in `gateway/run.py`. Kept the generic
+  relay adapter/transport (works with a pinned `GATEWAY_RELAY_SECRET`).
+- **`alvarez gateway enroll`** — deleted the command + parser/dispatch wiring.
+- **chronos cron provider** — deleted the plugin, its contract doc, and the
+  `/api/cron/fire` gateway webhook (`_handle_cron_fire`, which imported the
+  deleted `chronos.verify.get_fire_verifier`).
+- **credential_pool** — dropped the broken `runtime_api_key` nous branch.
+- Deleted/trimmed all the corresponding tests (relay self_provision, enroll
+  dispatch, chronos, cron-fire-webhook, the 2 runtime_api_key tests).
+
+**Still-open follow-ups (dead code, NOT failing CI):**
+- `agent/credential_pool.py` retains deeper nous vestiges — the refresh branch
+  still references the deleted `resolve_nous_runtime_credentials`, plus nous
+  sync/quarantine helpers and ~55 nous tests. Dead code for a removed provider,
+  not reached by any passing test. A full de-nous of this 107KB module is its
+  own pass (gutting ~55 tests); deferred deliberately.
+- Banner constants half-renamed: `_UPSTREAM_REPO_URL` (`banner.py:122`) still
+  `hermes-agent` while `_OFFICIAL_REPO_CANONICAL` is `alvarez-agent`.
+
+**The plan's ~40-file list was incomplete.** The true post-strip-down failing
+set is larger — e.g. `tests/tools/test_web_tools_config.py` (a stale
+`managed_nous_tools_enabled` patch target; fixed the 41 setup errors, 9
+managed-gateway-readiness assertion failures remain as a deeper batch). A clean
+full-suite enumeration (CI, or a HOME-isolated local run) is needed to find the
+remaining batches.
+
+**Test-isolation footgun found:** running the whole suite against a real
+`~/.alvarez` can make live provider calls — a test resolved real xAI OAuth
+creds via a `Path.home()` path that bypasses the conftest's `ALVAREZ_HOME`
+redirect. Local runs must also set `HOME` to a tmp dir.
+
 ### 2026-07-05 — CI cleanup: catch up the stale test suite (Workstream B)
 
 Finished the strip-down test catch-up the earlier "tests: catch up" commit
