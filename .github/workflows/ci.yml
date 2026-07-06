@@ -76,12 +76,6 @@ jobs:
     if: needs.detect.outputs.frontend == 'true'
     uses: ./.github/workflows/typecheck.yml
 
-  docs-site:
-    name: Docs Site
-    needs: detect
-    if: needs.detect.outputs.site == 'true'
-    uses: ./.github/workflows/docs-site-checks.yml
-
   history-check:
     name: Deny unrelated histories
     needs: detect
@@ -140,7 +134,6 @@ jobs:
       - tests
       - lint
       - typecheck
-      - docs-site
       - history-check
       - contributor-check
       - uv-lockfile

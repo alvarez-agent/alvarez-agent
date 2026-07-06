@@ -6,6 +6,28 @@ Informal working doc. Not a spec, just enough to start cutting.
 
 Running record of refactor changes as they land. Newest first.
 
+### 2026-07-05 — CI cleanup: prune dead workflow jobs (Workstream A)
+
+CI was red across the board since the initial public commit — leftover from
+the Phase 3 strip-down, not from recent feature work. First pass removes CI
+workflow jobs that reference deleted dirs (`apps/`, `web/`, `docs-site/`,
+`website/`):
+
+- **`typecheck.yml`**: matrix reduced `[ui-tui, web, apps/bootstrap-installer,
+  apps/desktop, apps/shared]` → `[ui-tui]` (only survivor); dropped the
+  "Build desktop app" job (`npm run --prefix apps/desktop build` — dir gone).
+- **`docs-site-checks.yml`**: deleted (built the removed Docusaurus site);
+  removed its `docs-site` job from `ci.yml` and the `- docs-site` entry in
+  `all-checks-pass` `needs:`.
+- **Dead website-docs pipeline deleted** (`deploy-site.yml`, `skills-index.yml`,
+  `skills-index-freshness.yml`): all three built/deployed/watched the removed
+  `website/` Docusaurus site and were hard-gated to `NousResearch/hermes-agent`
+  — they only ever skip in this fork.
+- **`osv-scanner.yml`**: dropped the `--lockfile=website/package-lock.json` arg
+  (file gone). The scanner core already passed; its remaining red is unrelated
+  (`Upload to code-scanning` needs GitHub Advanced Security enabled on the repo
+  — a settings issue, not a code one).
+
 ### 2026-07-04 — personalities → moods, Alvarez mood set
 
 SOUL.md is the identity now; the overlays are *moods* — registers layered on
