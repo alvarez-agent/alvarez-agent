@@ -40,7 +40,7 @@ class TestFirecrawlClientConfig:
         # full firecrawl client init path sees True.
         self._managed_patchers = [
             patch("tools.web_tools.managed_nous_tools_enabled", return_value=True),
-            patch("tools.managed_tool_gateway.managed_nous_tools_enabled", return_value=True),
+            patch("tools.tool_backend_helpers.managed_nous_tools_enabled", return_value=True),
         ]
         for p in self._managed_patchers:
             p.start()
@@ -226,7 +226,7 @@ class TestBackendSelection:
             os.environ.pop(key, None)
         self._managed_patchers = [
             patch("tools.web_tools.managed_nous_tools_enabled", return_value=True),
-            patch("tools.managed_tool_gateway.managed_nous_tools_enabled", return_value=True),
+            patch("tools.tool_backend_helpers.managed_nous_tools_enabled", return_value=True),
         ]
         for p in self._managed_patchers:
             p.start()
@@ -497,7 +497,7 @@ class TestCheckWebApiKey:
             os.environ.pop(key, None)
         self._managed_patchers = [
             patch("tools.web_tools.managed_nous_tools_enabled", return_value=True),
-            patch("tools.managed_tool_gateway.managed_nous_tools_enabled", return_value=True),
+            patch("tools.tool_backend_helpers.managed_nous_tools_enabled", return_value=True),
         ]
         for p in self._managed_patchers:
             p.start()
