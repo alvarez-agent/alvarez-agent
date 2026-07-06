@@ -24,9 +24,19 @@ import pytest
 from alvarez_cli.main import _cmd_update_check, cmd_update
 
 
+# `alvarez update` is disabled in the Alvarez fork (no upstream/release
+# channel yet) — cmd_update exits 1 before reaching any of the logic these
+# tests cover. See the re-enable note in cmd_update (alvarez_cli/main.py);
+# unskip these when the update channel is re-pointed at the Alvarez origin.
+update_disabled = pytest.mark.skip(
+    reason="`alvarez update` is disabled in the Alvarez fork — see cmd_update in alvarez_cli/main.py"
+)
+
+
 # ---------- cmd_update (apply path) ----------
 
 
+@update_disabled
 @patch("alvarez_cli.config.is_managed", return_value=False)
 @patch("alvarez_cli.config.detect_install_method", return_value="docker")
 @patch("subprocess.run")
@@ -49,6 +59,7 @@ def test_cmd_update_in_docker_prints_guidance_and_exits(
     assert git_calls == [], f"expected no git calls, got: {git_calls}"
 
 
+@update_disabled
 @patch("alvarez_cli.config.is_managed", return_value=False)
 @patch("alvarez_cli.config.detect_install_method", return_value="docker")
 @patch("subprocess.run")
@@ -68,6 +79,7 @@ def test_cmd_update_check_in_docker_prints_guidance_and_exits(
     assert git_calls == [], f"expected no git calls, got: {git_calls}"
 
 
+@update_disabled
 @patch("alvarez_cli.config.is_managed", return_value=False)
 @patch("alvarez_cli.config.detect_install_method", return_value="docker")
 @patch("subprocess.run")
@@ -171,7 +183,7 @@ def test_format_docker_update_message_contents():
     msg = format_docker_update_message()
 
     # Primary command — the entire reason this message exists.
-    assert "docker pull nousresearch/alvarez-agent:latest" in msg
+    assert "docker pull <your-alvarez-agent-image>:latest" in msg
 
     # The four key concepts the message must cover:
     assert "restart" in msg.lower(), "must explain that a restart is required"

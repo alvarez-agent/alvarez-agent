@@ -9,6 +9,15 @@ from alvarez_cli import config as alvarez_config
 from alvarez_cli import main as alvarez_main
 
 
+# `alvarez update` is disabled in the Alvarez fork (no upstream/release
+# channel yet) — cmd_update exits 1 before reaching any of the logic these
+# tests cover. See the re-enable note in cmd_update (alvarez_cli/main.py);
+# unskip these when the update channel is re-pointed at the Alvarez origin.
+update_disabled = pytest.mark.skip(
+    reason="`alvarez update` is disabled in the Alvarez fork — see cmd_update in alvarez_cli/main.py"
+)
+
+
 # ---------------------------------------------------------------------------
 # Managed-uv compatibility for tests that patch shutil.which
 # ---------------------------------------------------------------------------
@@ -396,6 +405,7 @@ def _setup_update_mocks(monkeypatch, tmp_path):
     monkeypatch.setattr(alvarez_main, "_refresh_active_lazy_features", lambda: None)
 
 
+@update_disabled
 def test_cmd_update_retries_optional_extras_individually_when_all_fails(monkeypatch, tmp_path, capsys):
     """When .[all] fails, update should keep base deps and retry extras individually."""
     _setup_update_mocks(monkeypatch, tmp_path)
@@ -446,6 +456,7 @@ def test_cmd_update_retries_optional_extras_individually_when_all_fails(monkeypa
     assert "Skipped optional extras that still failed: matrix" in out
 
 
+@update_disabled
 def test_cmd_update_succeeds_with_extras(monkeypatch, tmp_path):
     """When .[all] succeeds, no fallback should be attempted."""
     _setup_update_mocks(monkeypatch, tmp_path)
@@ -568,6 +579,7 @@ def _make_update_side_effect(
     return side_effect, recorded
 
 
+@update_disabled
 def test_cmd_update_falls_back_to_reset_when_ff_only_fails(monkeypatch, tmp_path, capsys):
     """When --ff-only fails (diverged history), update resets to origin/{branch}."""
     _setup_update_mocks(monkeypatch, tmp_path)
@@ -586,6 +598,7 @@ def test_cmd_update_falls_back_to_reset_when_ff_only_fails(monkeypatch, tmp_path
     assert "Fast-forward not possible" in out
 
 
+@update_disabled
 def test_cmd_update_no_reset_when_ff_only_succeeds(monkeypatch, tmp_path):
     """When --ff-only succeeds, no reset is attempted."""
     _setup_update_mocks(monkeypatch, tmp_path)
@@ -604,6 +617,7 @@ def test_cmd_update_no_reset_when_ff_only_succeeds(monkeypatch, tmp_path):
 # Non-main branch → auto-checkout main
 # ---------------------------------------------------------------------------
 
+@update_disabled
 def test_cmd_update_switches_to_main_from_feature_branch(monkeypatch, tmp_path, capsys):
     """When on a feature branch, update checks out main before pulling."""
     _setup_update_mocks(monkeypatch, tmp_path)
@@ -622,6 +636,7 @@ def test_cmd_update_switches_to_main_from_feature_branch(monkeypatch, tmp_path, 
     assert "switching to main" in out
 
 
+@update_disabled
 def test_cmd_update_switches_to_main_from_detached_head(monkeypatch, tmp_path, capsys):
     """When in detached HEAD state, update checks out main before pulling."""
     _setup_update_mocks(monkeypatch, tmp_path)
@@ -639,6 +654,7 @@ def test_cmd_update_switches_to_main_from_detached_head(monkeypatch, tmp_path, c
     assert "detached HEAD" in out
 
 
+@update_disabled
 def test_cmd_update_restores_stash_and_branch_when_already_up_to_date(monkeypatch, tmp_path, capsys):
     """When on a feature branch with no updates, stash is restored and branch switched back."""
     _setup_update_mocks(monkeypatch, tmp_path)
@@ -673,6 +689,7 @@ def test_cmd_update_restores_stash_and_branch_when_already_up_to_date(monkeypatc
     assert "Already up to date" in out
 
 
+@update_disabled
 def test_cmd_update_no_checkout_when_already_on_main(monkeypatch, tmp_path):
     """When already on main, no checkout is needed."""
     _setup_update_mocks(monkeypatch, tmp_path)
@@ -687,6 +704,7 @@ def test_cmd_update_no_checkout_when_already_on_main(monkeypatch, tmp_path):
     assert len(checkout_calls) == 0
 
 
+@update_disabled
 def test_cmd_update_fetch_is_scoped_to_target_branch(monkeypatch, tmp_path):
     """The update fetch must name the target branch. A bare `git fetch origin`
     pulls every ref, and this repo has thousands of auto-generated branches, so
@@ -708,6 +726,7 @@ def test_cmd_update_fetch_is_scoped_to_target_branch(monkeypatch, tmp_path):
 # Fetch failure — friendly error messages
 # ---------------------------------------------------------------------------
 
+@update_disabled
 def test_cmd_update_network_error_shows_friendly_message(monkeypatch, tmp_path, capsys):
     """Network failures during fetch show a user-friendly message."""
     _setup_update_mocks(monkeypatch, tmp_path)
@@ -725,6 +744,7 @@ def test_cmd_update_network_error_shows_friendly_message(monkeypatch, tmp_path, 
     assert "Network error" in out
 
 
+@update_disabled
 def test_cmd_update_auth_error_shows_friendly_message(monkeypatch, tmp_path, capsys):
     """Auth failures during fetch show a user-friendly message."""
     _setup_update_mocks(monkeypatch, tmp_path)
@@ -746,6 +766,7 @@ def test_cmd_update_auth_error_shows_friendly_message(monkeypatch, tmp_path, cap
 # reset --hard failure — don't attempt stash restore
 # ---------------------------------------------------------------------------
 
+@update_disabled
 def test_cmd_update_skips_stash_restore_when_reset_fails(monkeypatch, tmp_path, capsys):
     """When reset --hard fails, stash restore is skipped with a helpful message."""
     _setup_update_mocks(monkeypatch, tmp_path)
@@ -809,6 +830,7 @@ def _setup_setting_test(monkeypatch, tmp_path, mode):
     return restore_calls, discard_calls, recorded
 
 
+@update_disabled
 def test_non_interactive_discard_throws_changes_away(monkeypatch, tmp_path):
     """Gateway/chat-app update with discard mode drops the stash, never restores."""
     restore_calls, discard_calls, _ = _setup_setting_test(monkeypatch, tmp_path, "discard")
@@ -819,6 +841,7 @@ def test_non_interactive_discard_throws_changes_away(monkeypatch, tmp_path):
     assert len(restore_calls) == 0
 
 
+@update_disabled
 def test_non_interactive_stash_restores_changes(monkeypatch, tmp_path):
     """Gateway/chat-app update with the default stash mode restores, never discards."""
     restore_calls, discard_calls, _ = _setup_setting_test(monkeypatch, tmp_path, "stash")
@@ -829,6 +852,7 @@ def test_non_interactive_stash_restores_changes(monkeypatch, tmp_path):
     assert len(discard_calls) == 0
 
 
+@update_disabled
 def test_interactive_update_ignores_discard_setting(monkeypatch, tmp_path):
     """An interactive (TTY) terminal update always restores — the discard
     setting only governs non-interactive updates."""
@@ -844,6 +868,7 @@ def test_interactive_update_ignores_discard_setting(monkeypatch, tmp_path):
     assert len(discard_calls) == 0
 
 
+@update_disabled
 def test_non_interactive_defaults_to_stash_when_setting_absent(monkeypatch, tmp_path):
     """A config with no update section falls back to stash (safe default)."""
     restore_calls, discard_calls, _ = _setup_setting_test(monkeypatch, tmp_path, "stash")

@@ -27,6 +27,15 @@ from alvarez_cli import main as cli_main
 pytestmark = pytest.mark.real_concurrent_gate
 
 
+# `alvarez update` is disabled in the Alvarez fork (no upstream/release
+# channel yet) — cmd_update exits 1 before reaching any of the logic these
+# tests cover. See the re-enable note in cmd_update (alvarez_cli/main.py);
+# unskip these when the update channel is re-pointed at the Alvarez origin.
+update_disabled = pytest.mark.skip(
+    reason="`alvarez update` is disabled in the Alvarez fork — see cmd_update in alvarez_cli/main.py"
+)
+
+
 # ---------------------------------------------------------------------------
 # _detect_concurrent_alvarez_instances
 # ---------------------------------------------------------------------------
@@ -716,6 +725,7 @@ def test_resume_cold_start_skips_when_gateway_already_running(
 # ---------------------------------------------------------------------------
 
 
+@update_disabled
 @patch.object(cli_main, "_is_windows", return_value=True)
 def test_cmd_update_aborts_on_concurrent_instance(_winp, tmp_path, capsys):
     """If another alvarez.exe is running, the update bails out before
@@ -758,6 +768,7 @@ def test_cmd_update_aborts_on_concurrent_instance(_winp, tmp_path, capsys):
     assert "--force" in captured
 
 
+@update_disabled
 @patch.object(cli_main, "_is_windows", return_value=True)
 def test_cmd_update_force_bypasses_concurrent_check(_winp, tmp_path):
     """--force lets the update proceed past the concurrent-instance gate
