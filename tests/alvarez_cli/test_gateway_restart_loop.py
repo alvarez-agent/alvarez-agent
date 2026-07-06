@@ -30,7 +30,7 @@ class TestGatewayLifecyclePattern:
         "alvarez gateway stop",
         "alvarez gateway start",
         "alvarez  gateway  restart",         # double spaces
-        "Hermez Gateway Restart".lower().replace("z", "s"),  # case handled
+        "Alvarez Gateway Restart",           # case handled
         "ALVAREZ GATEWAY RESTART",           # uppercase
     ])
     def test_alvarez_gateway_commands(self, text):
