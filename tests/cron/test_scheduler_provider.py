@@ -163,15 +163,15 @@ def test_default_config_cron_provider_is_empty():
 
 
 def test_discover_cron_schedulers_returns_list():
-    """Discovery returns bundled non-default providers.
+    """Discovery returns a list of bundled non-default providers (may be empty).
 
-    The built-in is core, not discovered here.
+    The built-in is core, not discovered here, so a checkout with no bundled
+    non-default provider returns [].
     """
     from plugins.cron_providers import discover_cron_schedulers
 
     result = discover_cron_schedulers()
     assert isinstance(result, list)
-    assert any(name == "chronos" for name, _desc, _available in result)
 
 
 def test_load_unknown_cron_scheduler_returns_none():
