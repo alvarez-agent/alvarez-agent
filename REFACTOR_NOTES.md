@@ -6,6 +6,68 @@ Informal working doc. Not a spec, just enough to start cutting.
 
 Running record of refactor changes as they land. Newest first.
 
+### 2026-07-05 — CI cleanup: catch up the stale test suite (Workstream B)
+
+Finished the strip-down test catch-up the earlier "tests: catch up" commit
+started. ~40 files triaged; each failure was run and confirmed before acting
+(delete only when the code/dir under test is gone; update the assertion when
+surviving code just lost Nous branding; skip when the feature is disabled).
+
+- **Deleted (dir/feature gone):** desktop/electron tests
+  (`test_desktop_electron_pin`, `test_desktop_mac_entitlements`,
+  `test_assistant_ui_tap_compat`), `test_release_acp_registry`
+  (acp_registry + scripts/release.py gone), `test_gateway_platform_gating`
+  (matrix/discord/slack), `test_windows_native_docs` (website/ docs). Plus
+  targeted single-test/class deletions for removed Nous surfaces (portal
+  pricing, credits, self-provision device-code, provider tables/profiles,
+  vision backend, prompt-cache portal path) and the removed docs-site
+  blueprint generator.
+- **Updated (surviving code, stale assertion):** rebrand fixes — banner
+  `NOUS ALVAREZ`→`ALVAREZ`, computer_use session-id prefix length
+  (`hermes-`=7 → `alvarez-`=8), gateway-restart legacy `hermes` case,
+  OpenRouter attribution `HTTP-Referer`→`X-Title`, managed tool-gateway
+  message, turn-retry field set, xurl skill test (dropped deleted docs
+  mirror), packaging-metadata (dropped removed `web` extra), provider-dir
+  floor 28→27 (removed empty `plugins/model-providers/nous/`), setup gateway
+  tests (removed matrix pre-config → bluebubbles).
+- **Skipped (feature disabled, not removed):** the remaining `alvarez update`
+  / passive-update-check tests, via the same `@update_disabled` marker the
+  earlier catch-up used (`test_cmd_update_docker`, `test_update_autostash`,
+  `test_update_check`, `test_update_concurrent_quarantine`).
+- **Source fixes (not just tests):** pruned 4 phantom entries
+  (`dashboard`, `serve`, `whatsapp`, `whatsapp-cloud`) from
+  `main.py:_BUILTIN_SUBCOMMANDS` — the tests were correctly flagging stale
+  source.
+
+**Surfaced, NOT papered over — genuine source bugs from an incomplete Nous
+removal (16 tests left failing on purpose):**
+- `agent/credential_pool.py:216` — `PooledCredential.runtime_api_key` (nous
+  branch) calls the deleted `alvarez_cli.auth._nous_invoke_jwt_is_usable`.
+  Fails 2 tests in `test_credential_pool.py`.
+- `alvarez_cli.auth.resolve_nous_access_token` is imported by live code
+  (`gateway/relay/__init__.py:492`, `alvarez_cli/gateway_enroll.py:148,184`,
+  `plugins/cron_providers/chronos/_nas_client.py:45`) but **defined nowhere**
+  — lazy imports inside function bodies, so it only breaks when called
+  (relay self-provision swallows the ImportError → silent no-op). Fails 3
+  tests in `test_relay_multiplatform.py` + 11 in `test_self_provision.py`.
+  Decision needed (Ken): finish removing the Nous provisioning path (relay
+  self-provision, gateway enroll, chronos NAS auth + these tests) OR restore
+  the two missing symbols in `auth.py`.
+- Minor: banner constants half-renamed in source — `_OFFICIAL_REPO_CANONICAL`
+  → alvarez, `_UPSTREAM_REPO_URL` (`banner.py:122`) still `hermes-agent`.
+
+Pre-existing order-dependent flakes left as-is (all fail on a clean
+`784eec906` too, not part of this cleanup):
+`test_projects_rpc.py::test_discover_repos_from_full_history`,
+`test_subagent_child_mirror.py::test_prompt_submit_rejected_while_child_run_active`,
+and `test_api_key_providers.py::TestZaiEndpointAutoDetect::test_probe_success_returns_detected_url`
+(passes in isolation; a preceding `tests/agent/*` test leaves a cached zai
+endpoint — confirmed pre-existing on base).
+
+Verification: the ~40 touched files run together give 833 passed / 28 skipped
+/ 3 failed, where the 3 are the 2 credential_pool REAL_BUGs above + the zai
+flake. The relay REAL_BUG pair adds 14 more (3 + 11), untouched.
+
 ### 2026-07-05 — CI cleanup: prune dead workflow jobs (Workstream A)
 
 CI was red across the board since the initial public commit — leftover from
