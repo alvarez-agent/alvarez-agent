@@ -417,6 +417,12 @@ _SENSITIVE_PATH_PREFIXES = (
     "/etc/", "/boot/", "/usr/lib/systemd/",
     "/private/etc/", "/private/var/",
 )
+# macOS per-user temp/cache area (TMPDIR lives here; /var symlinks to
+# /private/var, so resolved temp paths would otherwise hit the
+# "/private/var/" block above and no temp file would ever be writable).
+_SENSITIVE_PATH_EXEMPT_PREFIXES = (
+    "/var/folders/", "/private/var/folders/",
+)
 _SENSITIVE_EXACT_PATHS = {"/var/run/docker.sock", "/run/docker.sock"}
 
 _alvarez_config_resolved: str | None = None
@@ -451,9 +457,13 @@ def _check_sensitive_path(filepath: str, task_id: str = "default") -> str | None
         f"Refusing to write to sensitive system path: {filepath}\n"
         "Use the terminal tool with sudo if you need to modify system files."
     )
-    for prefix in _SENSITIVE_PATH_PREFIXES:
-        if resolved.startswith(prefix) or normalized.startswith(prefix):
-            return _err
+    def _hits_sensitive_prefix(p: str) -> bool:
+        return p.startswith(_SENSITIVE_PATH_PREFIXES) and not p.startswith(
+            _SENSITIVE_PATH_EXEMPT_PREFIXES
+        )
+
+    if _hits_sensitive_prefix(resolved) or _hits_sensitive_prefix(normalized):
+        return _err
     if resolved in _SENSITIVE_EXACT_PATHS or normalized in _SENSITIVE_EXACT_PATHS:
         return _err
     # Prevent agents from modifying the Alvarez config file directly.

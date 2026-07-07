@@ -10,7 +10,7 @@ import sys
 import importlib
 from unittest.mock import MagicMock, patch
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+# (removed: inserted tests/ onto sys.path, shadowing the top-level `providers` package; conftest already adds the repo root)
 
 # Module-level reference to the cli module (set by _make_cli on first call)
 _cli_mod = None

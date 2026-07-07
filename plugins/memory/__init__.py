@@ -265,6 +265,13 @@ def _load_provider_from_dir(provider_dir: Path) -> Optional["MemoryProvider"]:
 
         mod = importlib.util.module_from_spec(spec)
         sys.modules[module_name] = mod
+        # Mirror the import system: set the attribute on the parent package,
+        # else `import plugins.memory.<name>` resolves via the sys.modules
+        # cache but `plugins.memory.<name>` attribute access (and
+        # monkeypatch.setattr string targets) fails with AttributeError.
+        parent_pkg = sys.modules.get(module_name.rpartition(".")[0])
+        if parent_pkg is not None:
+            setattr(parent_pkg, name, mod)
 
         # Register submodules so relative imports work
         # e.g., "from .store import MemoryStore" in holographic plugin
@@ -280,6 +287,7 @@ def _load_provider_from_dir(provider_dir: Path) -> Optional["MemoryProvider"]:
                 if sub_spec:
                     sub_mod = importlib.util.module_from_spec(sub_spec)
                     sys.modules[full_sub_name] = sub_mod
+                    setattr(mod, sub_name, sub_mod)  # mirror the import system
                     try:
                         sub_spec.loader.exec_module(sub_mod)
                     except Exception as e:

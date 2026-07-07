@@ -22,6 +22,7 @@ test runner at ``scripts/run_tests.sh``.
 import asyncio
 import os
 import sys
+import warnings
 from pathlib import Path
 
 import pytest
@@ -412,6 +413,177 @@ def _hermetic_environment(tmp_path, monkeypatch):
 def _isolate_alvarez_home(_hermetic_environment):
     """Alias preserved for any test that yields this name explicitly."""
     return None
+
+
+@pytest.fixture(autouse=True)
+def _restore_evicted_sys_modules():
+    """Undo sys.modules evictions/replacements a test performed.
+
+    Several tests force-reimport project code by deleting entries from
+    ``sys.modules`` (``for mod in sys.modules: if mod.startswith("alvarez_cli")
+    ... del``). Under per-file process isolation that's harmless; in a shared
+    process it poisons every later test two ways:
+
+      * later tests get fresh, empty re-imports (empty registries, reset
+        caches) while already-imported modules keep references to the old
+        objects, and
+      * re-importing ``pkg.sub`` overwrites the ``sub`` attribute on the
+        ORIGINAL ``pkg`` object, so ``import pkg.sub as x`` (getattr on the
+        package) and ``from pkg.sub import f`` (sys.modules) return two
+        different module objects — patches land on one, code runs the other.
+
+    Teardown restores the exact pre-test module objects for every top-level
+    package the test touched, drops that package's fresh re-imports, and
+    re-points parent-package attributes at the restored submodules.
+
+    The ``providers`` registry needs the same treatment: tests that evict
+    ``plugins.model_providers.*`` also clear ``providers._REGISTRY`` for
+    rediscovery, but restoring the module objects makes ``_discover_providers``
+    skip every "already imported" plugin — so nothing re-registers and the
+    registry stays empty forever. Snapshot the registry alongside sys.modules
+    and restore both together (they're mutually consistent pre-test).
+    """
+    before = dict(sys.modules)
+    prov = before.get("providers")
+    prov_state = (
+        (dict(prov._REGISTRY), dict(prov._ALIASES), prov._discovered)
+        if prov is not None
+        else None
+    )
+    yield
+    if os.environ.get("ALVAREZ_TEST_DISABLE_SYSMODULES_RESTORE"):
+        return
+    # A non-string key in sys.modules is always garbage (a Mock leaked by a
+    # test — Mock.startswith()/.split() return truthy Mocks, so such keys
+    # derail every module-name loop, including this one). Purge them before
+    # doing anything else; crashing here would abort the restore mid-loop
+    # and poison every later test.
+    for name in list(sys.modules):
+        if not isinstance(name, str):
+            del sys.modules[name]
+            warnings.warn(f"purged non-string sys.modules key {name!r}", stacklevel=1)
+    changed_roots = {
+        name.split(".")[0]
+        for name, mod in before.items()
+        if isinstance(name, str) and sys.modules.get(name) is not mod
+    }
+    if not changed_roots:
+        return
+    for name in list(sys.modules):
+        if name.split(".")[0] in changed_roots and name not in before:
+            del sys.modules[name]
+    for name, mod in before.items():
+        if not isinstance(name, str):
+            continue
+        if name.split(".")[0] in changed_roots:
+            sys.modules[name] = mod
+            parent, _, tail = name.rpartition(".")
+            if parent:
+                parent_mod = sys.modules.get(parent)
+                if parent_mod is not None:
+                    try:
+                        setattr(parent_mod, tail, mod)
+                    except Exception:
+                        pass
+    # Conditional on changed roots: an unconditional restore would wipe the
+    # registry after the first test that lazily triggers discovery (snapshot
+    # taken pre-discovery = empty), recreating the exact bug this fixes.
+    if prov_state is not None and changed_roots & {"providers", "plugins"}:
+        prov = sys.modules.get("providers")
+        if prov is not None:
+            prov._REGISTRY.clear()
+            prov._REGISTRY.update(prov_state[0])
+            prov._ALIASES.clear()
+            prov._ALIASES.update(prov_state[1])
+            prov._discovered = prov_state[2]
+
+
+@pytest.fixture(autouse=True)
+def _reset_prompt_toolkit_output():
+    """Undo a leaked prompt_toolkit output binding.
+
+    prompt_toolkit's AppSession creates its Output lazily on first use,
+    bound to whatever sys.stdout is at that moment — under pytest that's
+    the first calling test's capsys pipe. Every later test that prints via
+    prompt_toolkit (cli._cprint → print_formatted_text) then writes to the
+    dead capture instead of its own (victim: test_resume_quiet_stderr).
+    Restore the pre-test binding so the next user re-binds lazily.
+    """
+    try:
+        from prompt_toolkit.application.current import get_app_session
+
+        session = get_app_session()
+        prev_out, prev_in = session._output, session._input
+    except Exception:
+        yield
+        return
+    yield
+    try:
+        session = get_app_session()
+        session._output = prev_out
+        session._input = prev_in
+    except Exception:
+        pass
+
+
+@pytest.fixture(autouse=True)
+def _reset_logging_disable():
+    """Undo a leaked ``logging.disable()``.
+
+    ``alvarez_cli.oneshot.run_oneshot`` calls ``logging.disable(CRITICAL)``
+    and never re-enables — fine in its real one-shot process, but in a shared
+    pytest process it silences every log record for all later tests (victims:
+    the whole of test_alvarez_logging, and anything asserting log output).
+    """
+    import logging
+
+    prev = logging.root.manager.disable
+    yield
+    if logging.root.manager.disable != prev:
+        logging.disable(prev)
+
+
+@pytest.fixture(autouse=True)
+def _reset_session_context_vars():
+    """Reset gateway session ContextVars to the never-set sentinel after each test.
+
+    ``clear_session_vars`` deliberately pins vars to ``""`` (suppressing the
+    ``os.environ`` fallback) — correct in production, but in a shared pytest
+    process it leaks: any test that binds session vars would permanently mask
+    the env-var fallback for every later test in the same process.
+    """
+    yield
+    try:
+        from gateway import session_context as _sc
+
+        for _var in _sc._VAR_MAP.values():
+            _var.set(_sc._UNSET)
+        _sc._SESSION_ASYNC_DELIVERY.set(_sc._UNSET)
+    except Exception:
+        pass
+    # The durable last-known-cwd registry in file_tools is meant to outlive
+    # environment cleanup within a session — but across tests it silently
+    # re-anchors relative-path resolution to a previous test's tmp dir. The
+    # file-ops cache can re-seed it (it carries env.cwd), so clear both.
+    try:
+        import tools.file_tools as _ft
+
+        _ft._last_known_cwd.clear()
+        with _ft._file_ops_lock:
+            _ft._file_ops_cache.clear()
+    except Exception:
+        pass
+    # Leftover terminal environments re-seed the live-cwd lookup with a dead
+    # test's cwd (they carry env.cwd). Environments are recreated on demand,
+    # so dropping the references is safe.
+    try:
+        import tools.terminal_tool as _tt
+
+        with _tt._env_lock:
+            _tt._active_environments.clear()
+            _tt._last_activity.clear()
+    except Exception:
+        pass
 
 
 # ── Module-level state reset — replaced by per-file process isolation ──────

@@ -828,26 +828,35 @@ class TestSilentFileMisplacementE2E:
         task_id = "default"
         ft._last_known_cwd.pop(task_id, None)
 
-        # 1) Env alive; agent has cd'd into the project. A relative write
-        #    while alive mirrors the live cwd into the durable registry.
-        fo = ft._get_file_ops(task_id)
-        fo.env.cwd = str(project)
-        fo.env.cwd_owner = "default"
-        ft.write_file_tool("alive.txt", "1\n", task_id)
-        assert (project / "alive.txt").exists()
+        try:
+            # 1) Env alive; agent has cd'd into the project. A relative write
+            #    while alive mirrors the live cwd into the durable registry.
+            fo = ft._get_file_ops(task_id)
+            fo.env.cwd = str(project)
+            fo.env.cwd_owner = "default"
+            ft.write_file_tool("alive.txt", "1\n", task_id)
+            assert (project / "alive.txt").exists()
 
-        # 2) Cleanup thread kills the env AND clears the file_ops cache.
-        with tt._env_lock:
-            tt._active_environments.pop(task_id, None)
-            tt._last_activity.pop(task_id, None)
-        with ft._file_ops_lock:
-            ft._file_ops_cache.pop(task_id, None)
+            # 2) Cleanup thread kills the env AND clears the file_ops cache.
+            with tt._env_lock:
+                tt._active_environments.pop(task_id, None)
+                tt._last_activity.pop(task_id, None)
+            with ft._file_ops_lock:
+                ft._file_ops_cache.pop(task_id, None)
 
-        # 3) The next relative write must still land in the project dir.
-        res = json.loads(ft.write_file_tool("report.txt", "hello\n", task_id))
-        assert res.get("resolved_path") == str(project / "report.txt"), res
-        assert (project / "report.txt").exists(), "file should be in the user's cwd"
-        assert not (config_default / "report.txt").exists(), \
-            "file silently misplaced into config default (the #26211 bug)"
-
-        ft._last_known_cwd.pop(task_id, None)
+            # 3) The next relative write must still land in the project dir.
+            res = json.loads(ft.write_file_tool("report.txt", "hello\n", task_id))
+            assert res.get("resolved_path") == str(project / "report.txt"), res
+            assert (project / "report.txt").exists(), "file should be in the user's cwd"
+            assert not (config_default / "report.txt").exists(), \
+                "file silently misplaced into config default (the #26211 bug)"
+        finally:
+            # Step 3 recreated a real env anchored to this test's tmp dir
+            # under the shared "default" key — evict it or every later
+            # relative-path test resolves into this test's tmp dir.
+            with tt._env_lock:
+                tt._active_environments.pop(task_id, None)
+                tt._last_activity.pop(task_id, None)
+            with ft._file_ops_lock:
+                ft._file_ops_cache.pop(task_id, None)
+            ft._last_known_cwd.pop(task_id, None)

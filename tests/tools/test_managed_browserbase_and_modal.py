@@ -48,18 +48,18 @@ def _reset_modules(prefixes: tuple[str, ...]):
 
 @pytest.fixture(autouse=True)
 def _restore_tool_and_agent_modules():
+    # "plugins" included: _install_fake_tools_package() stubs plugins.* too,
+    # and leaving those stubs behind breaks every later plugin test.
+    prefixes = ("tools", "agent", "plugins")
     original_modules = {
         name: module
         for name, module in sys.modules.items()
-        if name == "tools"
-        or name.startswith("tools.")
-        or name == "agent"
-        or name.startswith("agent.")
+        if name in prefixes or name.startswith(tuple(p + "." for p in prefixes))
     }
     try:
         yield
     finally:
-        _reset_modules(("tools", "agent"))
+        _reset_modules(prefixes)
         sys.modules.update(original_modules)
 
 

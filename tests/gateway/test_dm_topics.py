@@ -43,9 +43,52 @@ def _ensure_telegram_mock():
     sys.modules.pop("plugins.platforms.telegram.adapter", None)
 
 
-_ensure_telegram_mock()
+# Set by _telegram_mock_env for the duration of this module's tests.
+TelegramAdapter = None
+_ChatType = None
 
-from plugins.platforms.telegram.adapter import TelegramAdapter  # noqa: E402
+
+@pytest.fixture(scope="module", autouse=True)
+def _telegram_mock_env():
+    """Install the telegram mock for THIS module only, then restore.
+
+    This used to run at module level (collection time), which stomped the
+    real telegram library in sys.modules for the ENTIRE pytest process —
+    every telegram test collected after this file silently ran against the
+    minimal mock (parse_mode/escaping asserts fail). No per-test fixture can
+    undo collection-time damage, so the mock must install at run time with
+    an explicit restore.
+    """
+    global TelegramAdapter, _ChatType
+    saved = {
+        k: v
+        for k, v in sys.modules.items()
+        if k == "telegram" or k.startswith("telegram.")
+    }
+    saved_adapter = sys.modules.pop("plugins.platforms.telegram.adapter", None)
+    for k in saved:
+        del sys.modules[k]
+    _ensure_telegram_mock()
+    import importlib
+
+    adapter_mod = importlib.import_module("plugins.platforms.telegram.adapter")
+    TelegramAdapter = adapter_mod.TelegramAdapter
+    # Use the same ChatType object the (mock-bound) adapter sees so equality
+    # checks in group-topic tests work.
+    from telegram.constants import ChatType as _CT
+
+    _ChatType = _CT
+    yield
+    for k in list(sys.modules):
+        if k == "telegram" or k.startswith("telegram."):
+            del sys.modules[k]
+    sys.modules.update(saved)
+    sys.modules.pop("plugins.platforms.telegram.adapter", None)
+    if saved_adapter is not None:
+        sys.modules["plugins.platforms.telegram.adapter"] = saved_adapter
+        parent = sys.modules.get("plugins.platforms.telegram")
+        if parent is not None:
+            parent.adapter = saved_adapter
 
 
 def _make_adapter(dm_topics_config=None, group_topics_config=None):
@@ -667,11 +710,8 @@ def test_build_message_event_preserves_true_dm_topic_thread_id():
 
 # ── _build_message_event: group_topics skill binding ──
 
-# The telegram mock sets sys.modules["telegram.constants"] = telegram_mod (root mock),
-# so `from telegram.constants import ChatType` in telegram.py resolves to
-# telegram_mod.ChatType — not telegram_mod.constants.ChatType.  We must use
-# the same ChatType object the production code sees so equality checks work.
-from telegram.constants import ChatType as _ChatType  # noqa: E402
+# _ChatType is set by the _telegram_mock_env fixture — the same ChatType
+# object the mock-bound adapter sees, so equality checks work.
 
 
 def test_group_topic_skill_binding():
