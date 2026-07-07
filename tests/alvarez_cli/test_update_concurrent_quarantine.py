@@ -18,6 +18,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from alvarez_cli import main as cli_main
+from tests.alvarez_cli.conftest import update_disabled
 
 
 # Tests in this module either exercise the REAL _detect_concurrent_alvarez_instances
@@ -25,15 +26,6 @@ from alvarez_cli import main as cli_main
 # or supply their own explicit return value via patch.object. Mark the whole
 # module so the conftest fixture skips its default stub.
 pytestmark = pytest.mark.real_concurrent_gate
-
-
-# `alvarez update` is disabled in the Alvarez fork (no upstream/release
-# channel yet) — cmd_update exits 1 before reaching any of the logic these
-# tests cover. See the re-enable note in cmd_update (alvarez_cli/main.py);
-# unskip these when the update channel is re-pointed at the Alvarez origin.
-update_disabled = pytest.mark.skip(
-    reason="`alvarez update` is disabled in the Alvarez fork — see cmd_update in alvarez_cli/main.py"
-)
 
 
 # ---------------------------------------------------------------------------

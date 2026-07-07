@@ -7,6 +7,7 @@ from unittest.mock import patch
 import pytest
 
 from alvarez_cli.main import cmd_update, PROJECT_ROOT
+from tests.alvarez_cli.conftest import update_disabled
 
 
 def _make_run_side_effect(branch="main", verify_ok=True, commit_count="0"):
@@ -37,15 +38,6 @@ def _make_run_side_effect(branch="main", verify_ok=True, commit_count="0"):
 @pytest.fixture
 def mock_args():
     return SimpleNamespace()
-
-
-# `alvarez update` is disabled in the Alvarez fork (no upstream/release
-# channel yet) — cmd_update exits 1 before reaching any of the logic these
-# tests cover. See the re-enable note in cmd_update (alvarez_cli/main.py);
-# unskip these when the update channel is re-pointed at the Alvarez origin.
-update_disabled = pytest.mark.skip(
-    reason="`alvarez update` is disabled in the Alvarez fork — see cmd_update in alvarez_cli/main.py"
-)
 
 
 def test_update_is_disabled_in_fork(mock_args, capsys):

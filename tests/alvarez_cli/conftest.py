@@ -4,6 +4,18 @@ from __future__ import annotations
 
 import pytest
 
+# Shared skip markers for the disabled `alvarez update` channel. Defined once
+# here (rather than copy-pasted per test file) so re-enabling the channel is a
+# single-place change instead of a hunt across every file that skipped its
+# tests. Two independent disable points exist — cmd_update and the passive
+# check — so there are two markers, not one.
+update_disabled = pytest.mark.skip(
+    reason="`alvarez update` is disabled in the Alvarez fork — see cmd_update in alvarez_cli/main.py"
+)
+passive_update_check_disabled = pytest.mark.skip(
+    reason="passive update check is disabled in the Alvarez fork — see check_for_updates in alvarez_cli/banner.py"
+)
+
 
 @pytest.fixture
 def all_assignees_spawnable(monkeypatch):

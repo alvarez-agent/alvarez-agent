@@ -124,12 +124,12 @@ def relay_platform_identity() -> tuple[str, str]:
 def relay_connection_auth() -> tuple[Optional[str], Optional[str]]:
     """The (gateway_id, upgrade_secret) this gateway authenticates the WS upgrade with.
 
-    Both come from enrollment (``alvarez gateway enroll`` writes them to
-    ``~/.alvarez/.env``): ``GATEWAY_RELAY_ID`` identifies the enrolled instance,
-    ``GATEWAY_RELAY_SECRET`` is the per-gateway signing secret. Either absent ->
-    ``(None, None)`` and the transport dials unauthenticated (dev/test, or a
-    connector that doesn't enforce auth). Checks env first (Docker), then
-    ``gateway.relay_id`` / ``gateway.relay_secret`` in config.yaml.
+    ``GATEWAY_RELAY_ID`` identifies the gateway instance and ``GATEWAY_RELAY_SECRET``
+    is its per-gateway signing secret — both set directly (there is no automated
+    enrollment/provisioning path in this repo; pin them via env or config.yaml).
+    Either absent -> ``(None, None)`` and the transport dials unauthenticated
+    (dev/test, or a connector that doesn't enforce auth). Checks env first
+    (Docker), then ``gateway.relay_id`` / ``gateway.relay_secret`` in config.yaml.
     """
     gateway_id = os.environ.get("GATEWAY_RELAY_ID", "").strip()
     secret = os.environ.get("GATEWAY_RELAY_SECRET", "").strip()
@@ -145,103 +145,22 @@ def relay_connection_auth() -> tuple[Optional[str], Optional[str]]:
     return (gateway_id or None, secret or None)
 
 
-def relay_endpoint() -> Optional[str]:
-    """The gateway's own PUBLIC inbound URL, asserted to the connector at provision.
-
-    The connector delivers signed inbound POSTs to this URL and stores it on the
-    tenant's route rows. It is gateway-asserted (the connector scopes it to the
-    verified tenant, so a dishonest gateway can only misdirect its OWN inbound).
-    The *source* of the value differs by deployment but the code path is uniform:
-    a self-hosted operator sets ``GATEWAY_RELAY_ENDPOINT`` (mirrors how they set
-    ``ALVAREZ_DASHBOARD_PUBLIC_URL``); a hosted/NAS container has the same var
-    stamped in (NAS knows the public URL only in that case). Absent -> the
-    gateway provisions outbound-only (no inbound routes written).
-
-    Env first (Docker), then ``gateway.relay_endpoint`` in config.yaml.
-    """
-    url = os.environ.get("GATEWAY_RELAY_ENDPOINT", "").strip()
-    if not url:
-        try:
-            from gateway.run import _load_gateway_config  # late import to avoid cycle
-
-            cfg = (_load_gateway_config().get("gateway") or {})
-            url = str(cfg.get("relay_endpoint", "") or "").strip()
-        except Exception:  # noqa: BLE001 - config absence/parse must never crash boot
-            url = ""
-    return url.rstrip("/") or None
-
-
-def relay_route_keys() -> list[str]:
-    """Discriminators (scope_ids / chat_ids / paths) this gateway's tenant owns.
-
-    Gateway-provided config, paired with ``relay_endpoint()``: the connector
-    writes one route row per (routeKey -> tenant, endpoint), so route keys only
-    take effect alongside an endpoint. Empty -> outbound-only provisioning (the
-    connector accepts an empty set and writes no route rows).
-
-    ``GATEWAY_RELAY_ROUTE_KEYS`` is comma-separated; config.yaml
-    ``gateway.relay_route_keys`` may be a list or a comma string.
-    """
-    raw = os.environ.get("GATEWAY_RELAY_ROUTE_KEYS", "").strip()
-    if not raw:
-        try:
-            from gateway.run import _load_gateway_config  # late import to avoid cycle
-
-            cfg = (_load_gateway_config().get("gateway") or {})
-            val = cfg.get("relay_route_keys", "")
-            if isinstance(val, (list, tuple)):
-                return [str(k).strip() for k in val if str(k).strip()]
-            raw = str(val or "").strip()
-        except Exception:  # noqa: BLE001
-            raw = ""
-    return [k.strip() for k in raw.split(",") if k.strip()]
-
-
-def relay_instance_id() -> Optional[str]:
-    """Stable per-instance id this gateway forwards at provision (Phase 6 Unit α).
-
-    Binds the connector's ``gatewayId -> instanceId`` so the connector can route
-    inbound per-instance (not tenant-broadcast) once Phase 6 delivery lands. The
-    value is the NAS ``AgentInstance.id`` for a managed agent (NAS stamps
-    ``GATEWAY_RELAY_INSTANCE_ID`` into the container env, beside
-    ``GATEWAY_RELAY_URL``); a self-hosted operator may set it explicitly. It is
-    gateway-asserted but safely scoped: the org/tenant stays token-verified, so a
-    dishonest gateway can only bind ITS OWN tenant's instance — the same posture
-    as ``relay_endpoint()``. Absent -> the connector stores null and per-instance
-    routing simply has no binding for this connection yet (back-compat).
-
-    Env first (Docker/NAS), then ``gateway.relay_instance_id`` in config.yaml.
-    """
-    value = os.environ.get("GATEWAY_RELAY_INSTANCE_ID", "").strip()
-    if not value:
-        try:
-            from gateway.run import _load_gateway_config  # late import to avoid cycle
-
-            cfg = (_load_gateway_config().get("gateway") or {})
-            value = str(cfg.get("relay_instance_id", "") or "").strip()
-        except Exception:  # noqa: BLE001 - config absence/parse must never crash boot
-            value = ""
-    return value or None
-
-
 def relay_wake_url() -> Optional[str]:
-    """The gateway's WAKE URL, forwarded at provision (Phase 5 §5.2 wake PRIMITIVE).
+    """The gateway's configured WAKE URL (Phase 5 §5.2 wake PRIMITIVE).
 
     A poke target the connector issues a payload-free GET to when a buffered-only
     (going-idle) destination for this instance receives its first buffered event,
     so a suspended gateway wakes, reconnects its relay WS, and drains its
-    delivery-leg backlog. The value's *source* differs by deployment but the code
-    path is uniform: a managed/NAS container has ``GATEWAY_RELAY_WAKE_URL`` stamped
-    in (NAS knows the Fly autostart / dashboard hostname); a self-hosted operator
-    sets it explicitly (or passes ``--wake-url`` to ``alvarez gateway enroll``).
+    delivery-leg backlog. Set via ``GATEWAY_RELAY_WAKE_URL`` env (Docker/NAS) or
+    ``gateway.relay_wake_url`` in config.yaml.
 
-    Gateway-asserted but safely scoped: the org/tenant stays token-verified, so a
-    dishonest gateway can only register a wake target for ITS OWN instance — the
-    same posture as ``relay_instance_id()`` / the retired ``relay_endpoint()``.
+    NOTE: nothing in this repo currently forwards this value to the connector
+    (self-provisioning and ``alvarez gateway enroll`` were both removed), so the
+    connector has no way to learn it — see ``gateway/scale_to_zero.py``'s
+    ``should_arm`` for the resulting wake gap this creates.
+
     Absent -> the connector stores null and simply can't wake this instance
     (buffering still works; the gateway drains whenever it next reconnects).
-
-    Env first (Docker/NAS), then ``gateway.relay_wake_url`` in config.yaml.
     """
     value = os.environ.get("GATEWAY_RELAY_WAKE_URL", "").strip()
     if not value:
