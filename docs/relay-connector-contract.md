@@ -285,14 +285,19 @@ the wake SIGNAL so a future scale-to-zero behaviour layer can rely on "buffered
 
 - **Registration.** The gateway registers a **wake URL** at enroll/provision —
   any reachable URL the connector can GET to wake it (a Fly autostart hostname,
-  a dashboard host). Self-hosted: `alvarez gateway enroll --wake-url <url>` (or
-  `GATEWAY_RELAY_WAKE_URL` / `gateway.relay_wake_url`). Managed/NAS: stamped into
-  the container env beside `GATEWAY_RELAY_URL`. Forwarded in the
-  `/relay/provision` body as `wakeUrl` and stored per-instance on the connector's
-  secret record (gateway-asserted but safely scoped — same posture as
-  `instanceId`; the org/tenant stays token-verified, so a gateway can only
-  register a wake target for ITS OWN instance). DISTINCT from the retired
-  `gatewayEndpoint`: a **poke target**, not a delivery target.
+  a dashboard host), forwarded in the `/relay/provision` body as `wakeUrl` and
+  stored per-instance on the connector's secret record (gateway-asserted but
+  safely scoped — same posture as `instanceId`; the org/tenant stays
+  token-verified, so a gateway can only register a wake target for ITS OWN
+  instance). DISTINCT from the retired `gatewayEndpoint`: a **poke target**,
+  not a delivery target.
+
+  This gateway repo currently has no code path that performs that
+  registration — the CLI enroll command and self-provisioning were both
+  removed (see `relay_wake_url()` in `gateway/relay/__init__.py`). A gateway
+  only sets `GATEWAY_RELAY_WAKE_URL` / `gateway.relay_wake_url` locally today;
+  until a registration path is restored, the connector has no `wakeUrl` on
+  file for it and a suspended relay-only gateway cannot be woken.
 - **The poke.** When a buffered-only (going-idle) destination receives its FIRST
   buffered event, the connector issues a **payload-free, unsigned GET** to that
   instance's registered `wakeUrl`, **directly** (NOT NAS-mediated — relay stays
@@ -455,12 +460,14 @@ only in transport. See `docs/capability-trust-boundary.md` (connector repo:
 
 A2 makes the connector the sole holder of platform secrets while the gateway may
 be **customer-managed and internet-exposed**, so the connector⇄gateway channel
-is itself authenticated. The gateway holds an enrollment- or provision-issued
-**per-gateway secret** (`alvarez gateway enroll` → connector `/relay/enroll`, or
-managed self-provision → `/relay/provision`) that authenticates its outbound WS
-upgrade. It is an HMAC-SHA256 scheme with a multi-secret rotation verify list
-(gateway side: `gateway/relay/auth.py`; connector side:
-`src/core/relayAuthToken.ts`).
+is itself authenticated. The gateway holds a **per-gateway secret** that
+authenticates its outbound WS upgrade — originally minted via enrollment
+(`alvarez gateway enroll` → connector `/relay/enroll`) or managed self-provision
+(→ `/relay/provision`); this gateway repo has removed both of those minting
+paths, so today the secret must be pinned directly (`GATEWAY_RELAY_SECRET` /
+`gateway.relay_secret`, read by `relay_connection_auth()`). It is an
+HMAC-SHA256 scheme with a multi-secret rotation verify list (gateway side:
+`gateway/relay/auth.py`; connector side: `src/core/relayAuthToken.ts`).
 
 | Leg | Credential | Mechanism |
 |-----|-----------|-----------|
