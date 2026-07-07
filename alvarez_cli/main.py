@@ -10238,8 +10238,6 @@ def _coalesce_session_name_args(argv: list) -> list:
         "model",
         "gateway",
         "setup",
-        "whatsapp",
-        "whatsapp-cloud",
         "login",
         "logout",
         "auth",
@@ -10257,11 +10255,8 @@ def _coalesce_session_name_args(argv: list) -> list:
         "update",
         "uninstall",
         "profile",
-        "dashboard",
-        "serve",
         "desktop",
         "gui",
-        "honcho",
         "claw",
         "plugins",
         "security",
@@ -10958,13 +10953,6 @@ def _render_distribution_plan(plan) -> None:
 
 
 
-def cmd_gateway_enroll(args):
-    """Enroll a self-hosted gateway with a relay connector."""
-    from alvarez_cli.gateway_enroll import cmd_gateway_enroll as _impl
-
-    _impl(args)
-
-
 def cmd_completion(args, parser=None):
     """Print shell completion script."""
     from alvarez_cli.completion import generate_bash, generate_zsh, generate_fish
@@ -11035,16 +11023,16 @@ _BUILTIN_SUBCOMMANDS = frozenset(
     {
         "acp", "auth", "backup", "bundles", "checkpoints", "claw", "completion",
         "computer-use",
-        "config", "cron", "curator", "dashboard", "serve", "debug", "doctor",
+        "config", "cron", "curator", "debug", "doctor",
         "dump", "fallback", "gateway", "hooks", "import", "insights",
         "gui", "desktop", "kanban", "login", "logout", "logs", "lsp", "mcp", "memory", "migrate", "moa",
         "journey", "memory-graph", "learning",
         "model", "pairing", "pets", "plugins", "postinstall", "profile",
         "project", "proxy",
         "prompt-size",
-        "send", "sessions", "setup",
+        "send", "sessions", "setup", "soul",
         "skills", "slack", "status", "tools", "uninstall", "update",
-        "version", "webhook", "whatsapp", "whatsapp-cloud", "chat", "secrets", "security",
+        "version", "webhook", "chat", "secrets", "security",
         # Help-ish invocations — plugin commands not being listed in
         # top-level --help is an acceptable trade-off for skipping an
         # expensive eager import of every bundled plugin module.
@@ -11690,9 +11678,7 @@ def main():
     # =========================================================================
     # gateway + proxy commands  (parsers built in alvarez_cli/subcommands/gateway.py)
     # =========================================================================
-    build_gateway_parser(
-        subparsers, cmd_gateway=cmd_gateway, cmd_proxy=cmd_proxy, cmd_gateway_enroll=cmd_gateway_enroll
-    )
+    build_gateway_parser(subparsers, cmd_gateway=cmd_gateway, cmd_proxy=cmd_proxy)
 
     # =========================================================================
     # lsp command
@@ -11949,6 +11935,26 @@ def main():
         _register_pets_cli(pets_parser)
     except Exception as _exc:
         logging.getLogger(__name__).debug("pets CLI wiring failed: %s", _exc)
+
+    # =========================================================================
+    # soul command — swap the agent personality (SOUL.md variants)
+    # =========================================================================
+    soul_parser = subparsers.add_parser(
+        "soul",
+        help="Show, save, and switch Alvarez personalities (SOUL.md)",
+        description=(
+            "Manage named SOUL.md variants in $ALVAREZ_HOME/souls/. "
+            "`alvarez soul save work` keeps the current personality, "
+            "`alvarez soul use work` switches to it. SOUL.md is re-read "
+            "every message, so switches take effect immediately."
+        ),
+    )
+    try:
+        from alvarez_cli.soul import register_cli as _register_soul_cli
+
+        _register_soul_cli(soul_parser)
+    except Exception as _exc:
+        logging.getLogger(__name__).debug("soul CLI wiring failed: %s", _exc)
 
     # =========================================================================
     # journey command — learned skills + memories over time, in the terminal

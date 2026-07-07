@@ -39,6 +39,7 @@ from alvarez_cli.config import (
 # display_alvarez_home is imported lazily at call sites to avoid ImportError
 # when alvarez_constants is cached from a pre-update version during `alvarez update`.
 from alvarez_cli.setup import (
+    _telegram_auto_available,
     print_header,
     print_info,
     print_success,
@@ -4997,7 +4998,7 @@ def _setup_standard_platform(platform: dict):
 
     auto_token_saved = False
     auto_owner_user_id = None
-    if platform.get("key") == "telegram":
+    if platform.get("key") == "telegram" and _telegram_auto_available():
         print()
         print_info("  Telegram can be configured automatically with a managed bot:")
         print_info("  [1] Automatic (scan QR → confirm in Telegram → done)")

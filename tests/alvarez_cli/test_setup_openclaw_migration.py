@@ -431,7 +431,9 @@ class TestGetSectionConfigSummary:
              patch.object(gateway_mod, "get_env_value", side_effect=env_side):
             result = setup_mod._get_section_config_summary({}, "gateway")
         assert "Telegram" in result
-        assert "Discord" in result
+        # Discord was stripped in the Alvarez fork — a leftover token must
+        # not resurface it in the summary.
+        assert "Discord" not in result
 
     def test_tools_returns_none_without_keys(self):
         with patch.object(setup_mod, "get_env_value", return_value=""):
@@ -474,18 +476,6 @@ class TestGetSectionConfigSummary:
                 "model",
             )
         assert result == "MiniMax-M1"
-
-    def test_gateway_recognises_whatsapp_enabled(self):
-        """WhatsApp uses WHATSAPP_ENABLED (not WHATSAPP_PHONE_NUMBER_ID)."""
-        def env_side(key):
-            return "true" if key == "WHATSAPP_ENABLED" else ""
-
-        import alvarez_cli.gateway as gateway_mod
-        with patch.object(setup_mod, "get_env_value", side_effect=env_side), \
-             patch.object(gateway_mod, "get_env_value", side_effect=env_side):
-            result = setup_mod._get_section_config_summary({}, "gateway")
-        assert result is not None
-        assert "WhatsApp" in result
 
     def test_gateway_recognises_signal_http_url(self):
         """Signal uses SIGNAL_HTTP_URL (not SIGNAL_ACCOUNT)."""

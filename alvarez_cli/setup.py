@@ -200,9 +200,9 @@ def prompt(question: str, default: str = None, password: bool = False) -> str:
 
     try:
         if password:
-            value = masked_secret_prompt(color(display, Colors.YELLOW))
+            value = masked_secret_prompt(color(display, Colors.MAGENTA))
         else:
-            value = input(color(display, Colors.YELLOW))
+            value = input(color(display, Colors.MAGENTA))
 
         cleaned = _sanitize_pasted_input(value)
         return cleaned.strip() or default or ""
@@ -243,7 +243,7 @@ def prompt_choice(question: str, choices: list, default: int = 0, description: s
         print()
         return idx
 
-    print(color(question, Colors.YELLOW))
+    print(color(question, Colors.MAGENTA))
     for i, choice in enumerate(choices):
         marker = "●" if i == default else "○"
         if i == default:
@@ -305,7 +305,7 @@ def prompt_yes_no(question: str, default: bool = True) -> bool:
     while True:
         try:
             value = (
-                input(color(f"{question} [{default_str}]: ", Colors.YELLOW))
+                input(color(f"{question} [{default_str}]: ", Colors.MAGENTA))
                 .strip()
                 .lower()
             )
@@ -1680,6 +1680,15 @@ def _profile_name_from_alvarez_home(alvarez_home) -> str | None:
     return None
 
 
+def _telegram_auto_available() -> bool:
+    """True when the managed QR onboarding flow can actually run."""
+    try:
+        from alvarez_cli.telegram_managed_bot import onboarding_service_configured
+    except ImportError:
+        return False
+    return onboarding_service_configured()
+
+
 def _setup_telegram_auto() -> str | None:
     """Attempt automatic Telegram bot creation and return only the token."""
     result = _setup_telegram_auto_result()
@@ -1719,19 +1728,22 @@ def _setup_telegram():
                         print_success("Telegram allowlist configured")
             return
 
-    print_info("How would you like to create your Telegram bot?")
-    print()
-    print_info("  [1] Automatic (recommended)")
-    print_info("      Scan a QR code → confirm in Telegram → done.")
-    print_info("      No token copy-paste needed.")
-    print()
-    print_info("  [2] Manual")
-    print_info("      Create a bot via @BotFather yourself and paste the token.")
-    print()
-
-    choice = prompt("Choice [1/2]", default="1")
     token = None
     setup_result = None
+    if _telegram_auto_available():
+        print_info("How would you like to create your Telegram bot?")
+        print()
+        print_info("  [1] Automatic (recommended)")
+        print_info("      Scan a QR code → confirm in Telegram → done.")
+        print_info("      No token copy-paste needed.")
+        print()
+        print_info("  [2] Manual")
+        print_info("      Create a bot via @BotFather yourself and paste the token.")
+        print()
+
+        choice = prompt("Choice [1/2]", default="1")
+    else:
+        choice = "2"
 
     if choice.strip() == "1":
         setup_result = _setup_telegram_auto_result()

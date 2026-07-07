@@ -203,24 +203,6 @@ class PooledCredential:
 
     @property
     def runtime_api_key(self) -> str:
-        if self.provider == "nous":
-            # Nous stores the runtime inference credential in agent_key for
-            # compatibility. It must be a NAS invoke JWT.
-            for token, expires_at in (
-                (self.agent_key, self.agent_key_expires_at),
-                (self.access_token, self.expires_at),
-            ):
-                if (
-                    isinstance(token, str)
-                    and token.strip()
-                    and auth_mod._nous_invoke_jwt_is_usable(
-                        token,
-                        scope=getattr(self, "scope", None),
-                        expires_at=expires_at,
-                    )
-                ):
-                    return token.strip()
-            return ""
         return str(self.access_token or "")
 
     @property
@@ -1028,14 +1010,6 @@ class CredentialPool:
                     refresh_token=refreshed["refresh_token"],
                     last_refresh=refreshed.get("last_refresh"),
                 )
-            elif self.provider == "nous":
-                synced = self._sync_nous_entry_from_auth_store(entry)
-                if synced is not entry:
-                    entry = synced
-                auth_mod.resolve_nous_runtime_credentials(
-                    force_refresh=force,
-                )
-                updated = self._sync_nous_entry_from_auth_store(entry)
             else:
                 return entry
         except Exception as exc:
@@ -1217,73 +1191,6 @@ class CredentialPool:
                     self._entries = [
                         item for item in self._entries
                         if item.source != "device_code"
-                    ]
-                    if self._current_id == entry.id:
-                        self._current_id = None
-                    self._persist(removed_ids=removed_ids)
-                    return None
-            # For nous: another process may have consumed the refresh token
-            # between our proactive sync and the HTTP call.  Re-sync from
-            # auth.json and adopt the fresh tokens if available.
-            if self.provider == "nous":
-                synced = self._sync_nous_entry_from_auth_store(entry)
-                if synced.refresh_token != entry.refresh_token:
-                    logger.debug("Nous refresh failed but auth.json has newer tokens — adopting")
-                    updated = replace(
-                        synced,
-                        last_status=STATUS_OK,
-                        last_status_at=None,
-                        last_error_code=None,
-                        last_error_reason=None,
-                        last_error_message=None,
-                        last_error_reset_at=None,
-                    )
-                    self._replace_entry(synced, updated)
-                    self._persist()
-                    self._sync_device_code_entry_to_auth_store(updated)
-                    return updated
-                if auth_mod._is_terminal_nous_refresh_error(exc):
-                    logger.debug("Nous refresh token is terminally invalid; clearing local token state")
-                    try:
-                        with _auth_store_lock():
-                            auth_store = _load_auth_store()
-                            state = _load_provider_state(auth_store, "nous") or {
-                                "client_id": entry.client_id,
-                                "portal_base_url": entry.portal_base_url,
-                                "inference_base_url": entry.inference_base_url,
-                                "token_type": entry.token_type,
-                                "scope": entry.scope,
-                                "tls": entry.tls,
-                            }
-                            store_refresh = str(state.get("refresh_token") or "").strip()
-                            entry_refresh = str(entry.refresh_token or "").strip()
-                            if not store_refresh or store_refresh == entry_refresh:
-                                auth_mod._quarantine_nous_oauth_state(
-                                    state,
-                                    exc,
-                                    reason="credential_pool_refresh_failure",
-                                )
-                                auth_mod._quarantine_nous_pool_entries(
-                                    auth_store,
-                                    exc,
-                                    reason="credential_pool_refresh_failure",
-                                )
-                                _save_provider_state(auth_store, "nous", state)
-                                _save_auth_store(auth_store)
-                    except Exception as clear_exc:
-                        logger.debug("Failed to clear terminal Nous OAuth state: %s", clear_exc)
-
-                    singleton_sources = {
-                        auth_mod.NOUS_DEVICE_CODE_SOURCE,
-                        f"manual:{auth_mod.NOUS_DEVICE_CODE_SOURCE}",
-                    }
-                    removed_ids = [
-                        item.id for item in self._entries
-                        if item.source in singleton_sources
-                    ]
-                    self._entries = [
-                        item for item in self._entries
-                        if item.source not in singleton_sources
                     ]
                     if self._current_id == entry.id:
                         self._current_id = None

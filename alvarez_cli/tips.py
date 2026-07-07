@@ -27,7 +27,7 @@ TIPS = [
     "/yolo skips all dangerous command approval prompts for the rest of the session.",
     "/model lets you switch models mid-session — try /model sonnet or /model gpt-5.",
     "/model --global changes your default model permanently.",
-    "/personality pirate sets a fun personality — 14 built-in options from kawaii to shakespeare.",
+    "/mood ceo switches Alvarez's mood — 7 built-in moods from creative to zen.",
     "/skin changes the CLI theme — try ares, mono, slate, poseidon, or charizard.",
     "/statusbar toggles a persistent bar showing model, tokens, context fill %, cost, and duration.",
     "/tools disable browser temporarily removes browser tools for the current session.",
@@ -124,7 +124,7 @@ TIPS = [
     "ALVAREZ_TIMEZONE overrides the server timezone with any IANA timezone string.",
     "Environment variable substitution works in config.yaml: use ${VAR_NAME} syntax.",
     "Quick commands in config.yaml run shell commands instantly with zero token usage.",
-    "Custom personalities can be defined in config.yaml under agent.personalities.",
+    "Custom moods can be defined in config.yaml under agent.moods.",
     "provider_routing controls OpenRouter provider sorting, whitelisting, and blacklisting.",
 
     # --- Tools & Capabilities ---

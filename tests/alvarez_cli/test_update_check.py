@@ -9,6 +9,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from tests.alvarez_cli.conftest import passive_update_check_disabled as update_disabled
+
 
 def test_version_string_no_v_prefix():
     """__version__ should be bare semver without a 'v' prefix."""
@@ -16,6 +18,7 @@ def test_version_string_no_v_prefix():
     assert not __version__.startswith("v"), f"__version__ should not start with 'v', got {__version__!r}"
 
 
+@update_disabled
 def test_check_for_updates_uses_cache(tmp_path, monkeypatch):
     """When cache is fresh, check_for_updates should return cached value without calling git."""
     from alvarez_cli.banner import check_for_updates
@@ -37,6 +40,7 @@ def test_check_for_updates_uses_cache(tmp_path, monkeypatch):
     mock_run.assert_not_called()
 
 
+@update_disabled
 def test_check_for_updates_invalidates_on_version_change(tmp_path, monkeypatch):
     """A fresh cache from a different installed version must be re-checked, not reused.
 
@@ -74,6 +78,7 @@ def test_check_for_updates_invalidates_on_version_change(tmp_path, monkeypatch):
     assert written["ver"] == banner.VERSION
 
 
+@update_disabled
 def test_check_for_updates_expired_cache(tmp_path, monkeypatch):
     """When cache is expired, check_for_updates should call git fetch."""
     from alvarez_cli.banner import check_for_updates
@@ -98,7 +103,15 @@ def test_check_for_updates_expired_cache(tmp_path, monkeypatch):
 
 
 def test_check_for_updates_official_ssh_origin_uses_https_probe(tmp_path):
-    """Passive update checks must not trigger SSH auth for official installs."""
+    """Passive update checks must not trigger SSH auth for official installs.
+
+    Asserts against ``banner._UPSTREAM_REPO_URL`` rather than a hardcoded
+    literal: that constant is currently a placeholder (still points at
+    NousResearch/hermes-agent — see the re-enable note in
+    ``check_for_updates``) until a real alvarez-agent upstream exists. This
+    test protects the SSH-avoidance mechanism itself, independent of exactly
+    which URL is configured.
+    """
     import alvarez_cli.banner as banner
 
     repo_dir = tmp_path / "alvarez-agent"
@@ -110,13 +123,13 @@ def test_check_for_updates_official_ssh_origin_uses_https_probe(tmp_path):
     def fake_run(cmd, **kwargs):
         calls.append(cmd)
         if cmd == ["git", "remote", "get-url", "origin"]:
-            return MagicMock(returncode=0, stdout="git@github.com:NousResearch/hermes-agent.git\n")
+            return MagicMock(returncode=0, stdout="git@github.com:NousResearch/alvarez-agent.git\n")
         if cmd == ["git", "rev-parse", "HEAD"]:
             return MagicMock(returncode=0, stdout="local-sha\n")
         if cmd == [
             "git",
             "ls-remote",
-            "https://github.com/NousResearch/hermes-agent.git",
+            banner._UPSTREAM_REPO_URL,
             "refs/heads/main",
         ]:
             return MagicMock(returncode=0, stdout="upstream-sha\trefs/heads/main\n")
@@ -222,6 +235,7 @@ def test_check_via_local_git_full_clone_keeps_exact_count(tmp_path):
     assert result == 7
 
 
+@update_disabled
 def test_check_for_updates_no_git_dir(tmp_path, monkeypatch):
     """Falls back to PyPI check when .git directory doesn't exist anywhere."""
     import alvarez_cli.banner as banner
@@ -240,6 +254,7 @@ def test_check_for_updates_no_git_dir(tmp_path, monkeypatch):
     mock_run.assert_not_called()
 
 
+@update_disabled
 def test_check_for_updates_fallback_to_project_root(tmp_path, monkeypatch):
     """Dev install: falls back to Path(__file__).parent.parent when ALVAREZ_HOME has no git repo."""
     import alvarez_cli.banner as banner
@@ -287,6 +302,7 @@ def test_check_for_updates_docker_returns_none(tmp_path, monkeypatch):
     assert not cache_file.exists()
 
 
+@update_disabled
 def test_check_for_updates_non_docker_still_checks(tmp_path, monkeypatch):
     """The docker guard must NOT over-broaden: a pip install still version-checks.
 

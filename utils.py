@@ -227,7 +227,7 @@ def atomic_yaml_write(
     )
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
-            # allow_unicode=True writes emoji/kaomoji (e.g. personalities, skin
+            # allow_unicode=True writes emoji/kaomoji (e.g. moods, skin
             # cursors) as real UTF-8 instead of fragile escape sequences. Without
             # it, PyYAML emits astral-plane chars as `\UXXXXXXXX` (8-digit) escapes
             # inside multi-line double-quoted strings wrapped with `\`

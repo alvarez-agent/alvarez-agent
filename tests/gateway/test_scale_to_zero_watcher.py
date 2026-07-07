@@ -181,10 +181,20 @@ def _arm_runner(monkeypatch, platform_states, *, enabled=True, wake_url="https:/
 
 def test_arm_true_for_relay_only_with_disabled_placeholders(monkeypatch):
     """The F25 regression test: relay ENABLED, every other platform present but
-    DISABLED (the real load_gateway_config() shape). Must arm — the disabled
-    placeholders must NOT count as live direct-socket platforms."""
+    DISABLED (the real load_gateway_config() shape). The enabled-platform
+    filter must NOT count disabled placeholders as live direct-socket
+    platforms — verified via what reaches messaging_is_relay_only_or_absent,
+    since should_arm's overall outcome is currently hard-disarmed regardless
+    (see gateway/scale_to_zero.py's _WAKE_URL_REGISTRATION_AVAILABLE)."""
     from gateway.platforms.base import Platform
 
+    seen = []
+
+    def _capture(platforms):
+        seen.append(list(platforms))
+        return True
+
+    monkeypatch.setattr("gateway.scale_to_zero.messaging_is_relay_only_or_absent", _capture)
     r = _arm_runner(
         monkeypatch,
         {
@@ -195,7 +205,8 @@ def test_arm_true_for_relay_only_with_disabled_placeholders(monkeypatch):
             Platform.RELAY: True,
         },
     )
-    assert r._scale_to_zero_should_arm() is True
+    r._scale_to_zero_should_arm()
+    assert seen == [[Platform.RELAY]]
 
 
 def test_no_arm_when_a_direct_platform_is_actually_enabled(monkeypatch):
@@ -211,14 +222,25 @@ def test_no_arm_when_a_direct_platform_is_actually_enabled(monkeypatch):
 
 
 def test_arm_when_no_platform_enabled_at_all(monkeypatch):
-    """Chronos-only / no-messaging agent (all placeholders disabled) can scale to zero."""
+    """Chronos-only / no-messaging agent (all placeholders disabled) is still
+    recognized as relay_only_or_absent — verified the same way as the F25 test
+    above, since should_arm's overall outcome is currently hard-disarmed
+    regardless (see gateway/scale_to_zero.py's _WAKE_URL_REGISTRATION_AVAILABLE)."""
     from gateway.platforms.base import Platform
 
+    seen = []
+
+    def _capture(platforms):
+        seen.append(list(platforms))
+        return True
+
+    monkeypatch.setattr("gateway.scale_to_zero.messaging_is_relay_only_or_absent", _capture)
     r = _arm_runner(
         monkeypatch,
         {Platform.TELEGRAM: False, Platform.DISCORD: False},
     )
-    assert r._scale_to_zero_should_arm() is True
+    r._scale_to_zero_should_arm()
+    assert seen == [[]]
 
 
 def test_no_arm_when_not_opted_in(monkeypatch):

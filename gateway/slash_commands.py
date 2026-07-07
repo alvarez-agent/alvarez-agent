@@ -1749,8 +1749,8 @@ class GatewaySlashCommandsMixin:
         prefix = "✓" if result.success else "✗"
         return f"{prefix} {result.message}"
 
-    async def _handle_personality_command(self, event: MessageEvent) -> str:
-        """Handle /personality command - list or set a personality."""
+    async def _handle_mood_command(self, event: MessageEvent) -> str:
+        """Handle /mood command - list or set a mood."""
         from gateway.run import _alvarez_home, _load_gateway_config
         from alvarez_constants import display_alvarez_home
 
@@ -1759,24 +1759,24 @@ class GatewaySlashCommandsMixin:
 
         try:
             config = _load_gateway_config()
-            personalities = cfg_get(config, "agent", "personalities", default={})
+            moods = cfg_get(config, "agent", "moods", default={})
         except Exception:
             config = {}
-            personalities = {}
+            moods = {}
 
-        if not personalities:
-            return t("gateway.personality.none_configured", path=display_alvarez_home())
+        if not moods:
+            return t("gateway.mood.none_configured", path=display_alvarez_home())
 
         if not args:
-            lines = [t("gateway.personality.header")]
-            lines.append(t("gateway.personality.none_option"))
-            for name, prompt in personalities.items():
+            lines = [t("gateway.mood.header")]
+            lines.append(t("gateway.mood.none_option"))
+            for name, prompt in moods.items():
                 if isinstance(prompt, dict):
                     preview = prompt.get("description") or prompt.get("system_prompt", "")[:50]
                 else:
                     preview = prompt[:50] + "..." if len(prompt) > 50 else prompt
-                lines.append(t("gateway.personality.item", name=name, preview=preview))
-            lines.append(t("gateway.personality.usage"))
+                lines.append(t("gateway.mood.item", name=name, preview=preview))
+            lines.append(t("gateway.mood.usage"))
             return "\n".join(lines)
 
         def _resolve_prompt(value):
@@ -1796,11 +1796,11 @@ class GatewaySlashCommandsMixin:
                 config["agent"]["system_prompt"] = ""
                 atomic_yaml_write(config_path, config)
             except Exception as e:
-                return t("gateway.personality.save_failed", error=str(e))
+                return t("gateway.mood.save_failed", error=str(e))
             self._ephemeral_system_prompt = ""
-            return t("gateway.personality.cleared")
-        elif args in personalities:
-            new_prompt = _resolve_prompt(personalities[args])
+            return t("gateway.mood.cleared")
+        elif args in moods:
+            new_prompt = _resolve_prompt(moods[args])
 
             # Write to config.yaml, same pattern as CLI save_config_value.
             try:
@@ -1809,15 +1809,15 @@ class GatewaySlashCommandsMixin:
                 config["agent"]["system_prompt"] = new_prompt
                 atomic_yaml_write(config_path, config)
             except Exception as e:
-                return t("gateway.personality.save_failed", error=str(e))
+                return t("gateway.mood.save_failed", error=str(e))
 
             # Update in-memory so it takes effect on the very next message.
             self._ephemeral_system_prompt = new_prompt
 
-            return t("gateway.personality.set_to", name=args)
+            return t("gateway.mood.set_to", name=args)
 
-        available = "`none`, " + ", ".join(f"`{n}`" for n in personalities)
-        return t("gateway.personality.unknown", name=args, available=available)
+        available = "`none`, " + ", ".join(f"`{n}`" for n in moods)
+        return t("gateway.mood.unknown", name=args, available=available)
 
     async def _handle_retry_command(self, event: MessageEvent) -> str:
         """Handle /retry command - re-send the last user message."""

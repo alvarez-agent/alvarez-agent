@@ -162,20 +162,20 @@ export const sessionCommands: SlashCommand[] = [
   },
 
   {
-    help: 'switch personality for this session',
-    name: 'personality',
+    help: 'switch mood for this session',
+    name: 'mood',
     run: (arg, ctx) => {
       if (!arg) {
         return
       }
 
-      ctx.gateway.rpc<ConfigSetResponse>('config.set', { key: 'personality', session_id: ctx.sid, value: arg }).then(
+      ctx.gateway.rpc<ConfigSetResponse>('config.set', { key: 'mood', session_id: ctx.sid, value: arg }).then(
         ctx.guarded<ConfigSetResponse>(r => {
           if (r.history_reset) {
             ctx.session.resetVisibleHistory(r.info ?? null)
           }
 
-          ctx.transcript.sys(`personality: ${r.value || 'default'}${r.history_reset ? ' · transcript cleared' : ''}`)
+          ctx.transcript.sys(`mood: ${r.value || 'default'}${r.history_reset ? ' · transcript cleared' : ''}`)
           ctx.local.maybeWarn(r)
         })
       )
