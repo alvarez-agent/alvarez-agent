@@ -9,15 +9,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-
-# The passive update check is disabled in the Alvarez fork (no upstream/release
-# channel yet) — check_for_updates returns None before reaching any of the
-# logic these tests cover. See the re-enable note in check_for_updates
-# (alvarez_cli/banner.py); unskip these when the update channel is re-pointed
-# at the Alvarez origin.
-update_disabled = pytest.mark.skip(
-    reason="passive update check is disabled in the Alvarez fork — see check_for_updates in alvarez_cli/banner.py"
-)
+from tests.alvarez_cli.conftest import passive_update_check_disabled as update_disabled
 
 
 def test_version_string_no_v_prefix():
@@ -111,7 +103,15 @@ def test_check_for_updates_expired_cache(tmp_path, monkeypatch):
 
 
 def test_check_for_updates_official_ssh_origin_uses_https_probe(tmp_path):
-    """Passive update checks must not trigger SSH auth for official installs."""
+    """Passive update checks must not trigger SSH auth for official installs.
+
+    Asserts against ``banner._UPSTREAM_REPO_URL`` rather than a hardcoded
+    literal: that constant is currently a placeholder (still points at
+    NousResearch/hermes-agent — see the re-enable note in
+    ``check_for_updates``) until a real alvarez-agent upstream exists. This
+    test protects the SSH-avoidance mechanism itself, independent of exactly
+    which URL is configured.
+    """
     import alvarez_cli.banner as banner
 
     repo_dir = tmp_path / "alvarez-agent"
@@ -129,7 +129,7 @@ def test_check_for_updates_official_ssh_origin_uses_https_probe(tmp_path):
         if cmd == [
             "git",
             "ls-remote",
-            "https://github.com/NousResearch/hermes-agent.git",
+            banner._UPSTREAM_REPO_URL,
             "refs/heads/main",
         ]:
             return MagicMock(returncode=0, stdout="upstream-sha\trefs/heads/main\n")
