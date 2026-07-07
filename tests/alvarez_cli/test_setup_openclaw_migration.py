@@ -78,6 +78,9 @@ class TestOfferOpenclawMigration:
         ):
             # Wire up the fake module loading
             mock_spec = MagicMock()
+            # Real str name: setup.py does ``sys.modules[spec.name] = mod`` —
+            # a bare MagicMock here leaks a Mock KEY into sys.modules.
+            mock_spec.name = "openclaw_to_alvarez"
             mock_spec.loader = MagicMock()
             mock_spec_fn.return_value = mock_spec
 
@@ -146,6 +149,9 @@ class TestOfferOpenclawMigration:
             patch("importlib.util.spec_from_file_location") as mock_spec_fn,
         ):
             mock_spec = MagicMock()
+            # Real str name: setup.py does ``sys.modules[spec.name] = mod`` —
+            # a bare MagicMock here leaks a Mock KEY into sys.modules.
+            mock_spec.name = "openclaw_to_alvarez"
             mock_spec.loader = MagicMock()
             mock_spec_fn.return_value = mock_spec
 

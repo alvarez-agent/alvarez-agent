@@ -20,25 +20,19 @@ from tests.alvarez_cli.conftest import update_disabled
 # ``shutil.which`` so the existing test setup keeps working without
 # per-test changes.
 @pytest.fixture(autouse=True)
-def _patch_managed_uv(request):
-    """Make managed_uv helpers follow shutil.which mocking in tests."""
+def _patch_managed_uv(monkeypatch):
+    """Make managed_uv helpers follow shutil.which mocking in tests.
+
+    Uses ``monkeypatch`` (NOT ``unittest.mock.patch``): tests also monkeypatch
+    these attributes, and mixing the two undo stacks resurrects this fixture's
+    mock after teardown (monkeypatch is instantiated early as a dependency of
+    conftest's ``_hermetic_environment``, so its undo runs LAST).
+    """
     import shutil
 
-    # resolve_uv delegates to shutil.which("uv") so that test patches
-    # on shutil.which flow through naturally.
-    def _fake_resolve_uv():
-        return shutil.which("uv")
-
-    def _fake_ensure_uv():
-        return shutil.which("uv")
-
-    def _fake_update_managed_uv():
-        return None  # never actually self-update in tests
-
-    with patch("alvarez_cli.managed_uv.resolve_uv", side_effect=_fake_resolve_uv), \
-         patch("alvarez_cli.managed_uv.ensure_uv", side_effect=_fake_ensure_uv), \
-         patch("alvarez_cli.managed_uv.update_managed_uv", side_effect=_fake_update_managed_uv):
-        yield
+    monkeypatch.setattr("alvarez_cli.managed_uv.resolve_uv", lambda: shutil.which("uv"))
+    monkeypatch.setattr("alvarez_cli.managed_uv.ensure_uv", lambda: shutil.which("uv"))
+    monkeypatch.setattr("alvarez_cli.managed_uv.update_managed_uv", lambda: None)
 
 def test_stash_local_changes_if_needed_returns_none_when_tree_clean(monkeypatch, tmp_path):
     calls = []

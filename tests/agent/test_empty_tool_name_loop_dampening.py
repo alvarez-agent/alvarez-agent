@@ -119,10 +119,33 @@ def agent_env():
     os.environ["ALVAREZ_HOME"] = os.path.join(test_home, ".alvarez")
 
     # Import fresh so the patched conversation_loop is exercised even when the
-    # module was imported earlier in the same worker.
+    # module was imported earlier in the same worker. Snapshot the originals
+    # so teardown can put them back — later tests must see the already-loaded
+    # module objects (with populated registries), not fresh empty re-imports.
+    # "plugins" is in the set because plugin modules subclass classes from
+    # agent.* — a plugin imported against the fresh re-imports would fail
+    # isinstance checks against the restored originals after teardown.
+    # Bare packages ("agent", "tools", "plugins") must be popped too: if the
+    # original package object stays in sys.modules, re-importing a submodule
+    # overwrites its <pkg>.<submodule> attribute, and after restore
+    # `import pkg.sub as x` (getattr on the package) and `from pkg.sub
+    # import f` (sys.modules) would return two different module objects.
+    def _is_reset_module(mod: str) -> bool:
+        return (
+            mod in ("run_agent", "plugins", "agent", "tools")
+            or mod.startswith(("agent.", "tools.", "alvarez_", "plugins."))
+        )
+
+    saved_modules = {}
     for mod in list(sys.modules):
-        if mod == "run_agent" or mod.startswith("agent.") or mod.startswith("tools.") or mod.startswith("alvarez_"):
-            del sys.modules[mod]
+        if _is_reset_module(mod):
+            saved_modules[mod] = sys.modules.pop(mod)
+    # model_tools binds tools.registry's singleton at import time. It must NOT
+    # be evicted here (re-importing a pre-existing model_tools mid-test has
+    # import side effects that poison later tests), but if its FIRST import
+    # happens inside this test it binds the fresh registry we drop at teardown
+    # — track that so teardown can evict the stale stray.
+    had_model_tools = "model_tools" in sys.modules
     from run_agent import AIAgent
 
     agent = AIAgent(
@@ -143,6 +166,13 @@ def agent_env():
             os.environ.pop("ALVAREZ_HOME", None)
         else:
             os.environ["ALVAREZ_HOME"] = prev_home
+        # Drop the fresh re-imports and restore the pre-test module objects.
+        for mod in list(sys.modules):
+            if _is_reset_module(mod):
+                del sys.modules[mod]
+        sys.modules.update(saved_modules)
+        if not had_model_tools:
+            sys.modules.pop("model_tools", None)
 
 
 def _tool_results(handler) -> list[str]:

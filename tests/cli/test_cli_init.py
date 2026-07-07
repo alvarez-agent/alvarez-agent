@@ -6,7 +6,7 @@ import sys
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+# (removed: inserted tests/ onto sys.path, shadowing the top-level `providers` package; conftest already adds the repo root)
 
 
 def _make_cli(env_overrides=None, config_overrides=None, **kwargs):
