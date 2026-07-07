@@ -4,12 +4,15 @@
 # Installation script for Windows (PowerShell).
 # Uses uv for fast Python provisioning and package management.
 #
-# Usage:
-#   iex (irm https://hermes-agent.nousresearch.com/install.ps1)
+# Usage (the repo is private -- clone with your GitHub credentials first):
+#   git clone git@github.com:alvarez-agent/alvarez-agent.git
+#   cd alvarez-agent; .\scripts\install.ps1
 #
-# Or download and run with options:
-#   .\install.ps1 -NoVenv -SkipSetup
+# Or with options:
+#   .\scripts\install.ps1 -NoVenv -SkipSetup
 #
+# When run from inside a checkout, the installer clones that checkout into
+# the managed install dir; otherwise it falls back to cloning from GitHub.
 # ============================================================================
 
 param(
@@ -136,8 +139,16 @@ foreach ($tmpVar in @('TEMP', 'TMP')) {
 # Configuration
 # ============================================================================
 
-$RepoUrlSsh = "git@github.com:NousResearch/hermes-agent.git"
-$RepoUrlHttps = "https://github.com/NousResearch/hermes-agent.git"
+$RepoUrlSsh = "git@github.com:alvarez-agent/alvarez-agent.git"
+$RepoUrlHttps = "https://github.com/alvarez-agent/alvarez-agent.git"
+
+# Captured at script load for local-checkout detection (see Find-LocalSource);
+# empty when run via `iex (irm ...)`, which disables the detection.
+$InstallerSource = "$PSCommandPath"
+
+# Whether the caller explicitly passed -Branch (vs. the "main" default).  A
+# local-source install without -Branch follows the checkout's current branch.
+$BranchExplicit = $PSBoundParameters.ContainsKey('Branch')
 $PythonVersion = "3.11"
 # Minor versions the installer accepts when the requested $PythonVersion isn't
 # available, in preference order.  uv discovers both uv-managed and system
@@ -241,6 +252,33 @@ function Invoke-NativeWithRelaxedErrorAction {
     $ErrorActionPreference = "Continue"
     try {
         & $Script
+    } finally {
+        $ErrorActionPreference = $prevEAP
+    }
+}
+
+# When the installer runs from inside a checkout of this repo, install from
+# that checkout instead of cloning GitHub -- the repo is private, so the
+# checkout the user already cloned (with their own credentials) is the
+# reliable source.  Returns the checkout's top-level directory, or "" when
+# there is none.  Silent on the miss path: `iex (irm ...)` invocations have
+# an empty $InstallerSource, and -Manifest/-Json output must stay clean.
+function Find-LocalSource {
+    if ([string]::IsNullOrWhiteSpace($InstallerSource)) { return "" }
+    if (-not (Test-Path -LiteralPath $InstallerSource -PathType Leaf)) { return "" }
+    if (-not (Get-Command git -ErrorAction SilentlyContinue)) { return "" }
+    $prevEAP = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $scriptDir = Split-Path -Parent $InstallerSource
+        $toplevel = ([string](& git -C $scriptDir rev-parse --show-toplevel 2>$null)).Trim()
+        if ($LASTEXITCODE -ne 0 -or -not $toplevel) { return "" }
+        $pyproject = Join-Path $toplevel "pyproject.toml"
+        if (-not (Test-Path -LiteralPath $pyproject -PathType Leaf)) { return "" }
+        if (-not (Select-String -LiteralPath $pyproject -Pattern '^name = "alvarez-agent"' -Quiet)) { return "" }
+        return $toplevel
+    } catch {
+        return ""
     } finally {
         $ErrorActionPreference = $prevEAP
     }
@@ -1249,6 +1287,62 @@ function Install-SystemPackages {
 # Installation
 # ============================================================================
 
+# Clone from the local checkout detected by Find-LocalSource into $InstallDir,
+# preserving the managed-layout contract (the managed install is still an
+# independent git clone that later update runs stash/fetch/reset).  Installing
+# "in place" is deliberately not supported: the update path's
+# `git reset --hard origin/$Branch` would clobber a development checkout.
+function Install-RepositoryFromLocalSource {
+    param([Parameter(Mandatory=$true)] [string]$Source)
+
+    # Same EAP=Continue wrap as the update path -- git writes routine progress
+    # to stderr, which would terminate the script under the global EAP=Stop.
+    # $LASTEXITCODE carries the real failures.
+    $prevEAP = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $srcBranch = $Branch
+        if (-not $BranchExplicit) {
+            $srcBranch = ([string](& git -C $Source rev-parse --abbrev-ref HEAD 2>$null)).Trim()
+            if ($LASTEXITCODE -ne 0 -or -not $srcBranch) { $srcBranch = "main" }
+            if ($srcBranch -eq "HEAD") {
+                Write-Warn "Local checkout is on a detached HEAD -- installing 'main' instead"
+                $srcBranch = "main"
+            }
+        }
+        & git -C $Source rev-parse --verify --quiet "refs/heads/$srcBranch" 2>$null | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            Write-Err "Branch '$srcBranch' not found in local checkout: $Source"
+            Write-Info "Check out the branch you want to install, or pass -Branch <name>."
+            throw "branch '$srcBranch' not found in local checkout $Source"
+        }
+        $dirty = & git -C $Source status --porcelain 2>$null
+        if (-not [string]::IsNullOrWhiteSpace(($dirty -join "`n"))) {
+            Write-Warn "Local checkout has uncommitted changes -- only committed state on '$srcBranch' is installed."
+        }
+        Write-Info "Installing from local checkout $Source (branch: $srcBranch)..."
+        # No --depth: git ignores it for local-path clones (objects are
+        # hardlinked, so a full clone is cheap and the warning is just noise).
+        & git -c windows.appendAtomically=false clone --branch $srcBranch $Source $InstallDir
+        if ($LASTEXITCODE -ne 0) {
+            throw "Failed to clone from local checkout $Source (git clone exit $LASTEXITCODE)"
+        }
+        $script:Branch = $srcBranch
+        $sourceOrigin = ([string](& git -C $Source remote get-url origin 2>$null)).Trim()
+        if ($sourceOrigin) {
+            # Future update runs fetch from origin -- point it at the real
+            # remote (the user's credentials already work there; they cloned
+            # with them).
+            & git -C $InstallDir remote set-url origin $sourceOrigin
+            Write-Success "Cloned from local checkout (origin -> $sourceOrigin)"
+        } else {
+            Write-Warn "Local checkout has no 'origin' remote -- future updates will pull from $Source"
+        }
+    } finally {
+        $ErrorActionPreference = $prevEAP
+    }
+}
+
 function Install-Repository {
     Write-Info "Installing to $InstallDir..."
 
@@ -1464,14 +1558,26 @@ function Install-Repository {
         $env:GIT_CONFIG_VALUE_0 = "false"
         git config --global windows.appendAtomically false 2>$null
 
-        # Try SSH first, then HTTPS, with -c flag for atomic write fix
-        Write-Info "Trying SSH clone..."
-        $env:GIT_SSH_COMMAND = "ssh -o BatchMode=yes -o ConnectTimeout=5"
-        try {
-            Invoke-NativeWithRelaxedErrorAction { git -c windows.appendAtomically=false clone --depth 1 --branch $Branch $RepoUrlSsh $InstallDir }
-            if ($LASTEXITCODE -eq 0) { $cloneSuccess = $true }
-        } catch { }
-        $env:GIT_SSH_COMMAND = $null
+        # Prefer the checkout this script is running from, when there is one.
+        # No GitHub fallback on failure: the repo is private, so a clone that
+        # fails from the local checkout would only hit the same auth wall
+        # remotely with a slower, more confusing error.
+        $localSource = Find-LocalSource
+        if ($localSource) {
+            Install-RepositoryFromLocalSource -Source $localSource
+            $cloneSuccess = $true
+        }
+
+        if (-not $cloneSuccess) {
+            # Try SSH first, then HTTPS, with -c flag for atomic write fix
+            Write-Info "Trying SSH clone..."
+            $env:GIT_SSH_COMMAND = "ssh -o BatchMode=yes -o ConnectTimeout=5"
+            try {
+                Invoke-NativeWithRelaxedErrorAction { git -c windows.appendAtomically=false clone --depth 1 --branch $Branch $RepoUrlSsh $InstallDir }
+                if ($LASTEXITCODE -eq 0) { $cloneSuccess = $true }
+            } catch { }
+            $env:GIT_SSH_COMMAND = $null
+        }
 
         if (-not $cloneSuccess) {
             if (Test-Path $InstallDir) { Remove-Item -Recurse -Force $InstallDir -ErrorAction SilentlyContinue }
@@ -1491,13 +1597,13 @@ function Install-Repository {
                 # for.  GitHub supports archive URLs for commits, tags, and
                 # branches; we honour Commit > Tag > Branch.
                 if ($Commit) {
-                    $zipUrl = "https://github.com/NousResearch/hermes-agent/archive/$Commit.zip"
+                    $zipUrl = "https://github.com/alvarez-agent/alvarez-agent/archive/$Commit.zip"
                     $zipLabel = $Commit
                 } elseif ($Tag) {
-                    $zipUrl = "https://github.com/NousResearch/hermes-agent/archive/refs/tags/$Tag.zip"
+                    $zipUrl = "https://github.com/alvarez-agent/alvarez-agent/archive/refs/tags/$Tag.zip"
                     $zipLabel = $Tag
                 } else {
-                    $zipUrl = "https://github.com/NousResearch/hermes-agent/archive/refs/heads/$Branch.zip"
+                    $zipUrl = "https://github.com/alvarez-agent/alvarez-agent/archive/refs/heads/$Branch.zip"
                     $zipLabel = $Branch
                 }
                 $zipPath = "$env:TEMP\alvarez-agent-$zipLabel.zip"
@@ -3438,8 +3544,8 @@ try {
     Write-Host ""
     Write-Err "Installation failed: $_"
     Write-Host ""
-    Write-Info "If the error is unclear, try downloading and running the script directly:"
-    Write-Host "  Invoke-WebRequest -Uri 'https://hermes-agent.nousresearch.com/install.ps1' -OutFile install.ps1" -ForegroundColor Yellow
-    Write-Host "  .\install.ps1" -ForegroundColor Yellow
+    Write-Info "If the error is unclear, try running the script directly from a checkout:"
+    Write-Host "  git clone git@github.com:alvarez-agent/alvarez-agent.git" -ForegroundColor Yellow
+    Write-Host "  cd alvarez-agent; .\scripts\install.ps1" -ForegroundColor Yellow
     Write-Host ""
 }
