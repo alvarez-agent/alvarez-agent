@@ -28,14 +28,24 @@ Use any model you want — OpenRouter, OpenAI, your own endpoint, and many other
 ### Linux, macOS, WSL2, Termux
 
 ```bash
-bash scripts/install.sh    # from a local checkout of this repo
+# 1. Clone with your GitHub credentials (the repo is private)
+git clone git@github.com:alvarez-agent/alvarez-agent.git
+cd alvarez-agent
+
+# 2. Run the installer — it clones this checkout into the managed install
+#    at ~/.alvarez/alvarez-agent and points it at your origin
+bash scripts/install.sh
 ```
+
+The managed install is independent of the clone you ran the installer from —
+keep that clone for development or delete it afterwards.
 
 ### Windows (native, PowerShell)
 
 > **Heads up:** Native Windows runs Alvarez without WSL — CLI, gateway, TUI, and tools all work natively. If you'd rather use WSL2, the Linux/macOS path above works there too. Found a bug? Please file an issue.
 
-Run this in PowerShell:
+Clone the repo first with your GitHub credentials (the repo is private), then
+run this in PowerShell from inside the clone:
 
 ```powershell
 scripts\install.ps1    # from a local checkout of this repo
@@ -103,7 +113,7 @@ alvarez config set   # Set individual config values
 alvarez gateway      # Start the messaging gateway (Telegram, Discord, etc.)
 alvarez setup        # Run the full setup wizard (configures everything at once)
 alvarez claw migrate # Migrate from OpenClaw (if coming from OpenClaw)
-alvarez update       # Update to the latest version
+alvarez update       # Currently disabled — pull the repo and re-run scripts/install.sh
 alvarez doctor       # Diagnose any issues
 ```
 
@@ -175,7 +185,9 @@ full git checkout it creates at `$ALVAREZ_HOME/alvarez-agent` (usually
 managed venv, lazy dependencies, gateway, and docs tooling.
 
 ```bash
-bash scripts/install.sh    # from a local checkout of this repo
+git clone git@github.com:alvarez-agent/alvarez-agent.git
+cd alvarez-agent
+bash scripts/install.sh
 cd "${ALVAREZ_HOME:-$HOME/.alvarez}/alvarez-agent"
 uv pip install -e ".[all,dev]"
 scripts/run_tests.sh
@@ -189,6 +201,8 @@ the agent operates from can be wiped by a relative-path command the agent runs
 against its own checkout, destroying the running runtime mid-session.
 
 ```bash
+git clone git@github.com:alvarez-agent/alvarez-agent.git
+cd alvarez-agent
 curl -LsSf https://astral.sh/uv/install.sh | sh
 uv venv ~/.alvarez/venvs/alvarez-dev --python 3.11
 source ~/.alvarez/venvs/alvarez-dev/bin/activate
