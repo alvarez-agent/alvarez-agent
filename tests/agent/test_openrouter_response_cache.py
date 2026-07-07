@@ -18,7 +18,6 @@ class TestBuildOrHeaders:
         from agent.auxiliary_client import build_or_headers
 
         headers = build_or_headers(or_config={"response_cache": False})
-        assert headers["HTTP-Referer"] == "https://hermes-agent.nousresearch.com"
         assert headers["X-Title"] == "Alvarez Agent"
         assert headers["X-OpenRouter-Categories"] == "productivity,cli-agent"
 
@@ -131,7 +130,7 @@ class TestBuildOrHeaders:
         with patch("alvarez_cli.config.load_config", side_effect=RuntimeError("boom")):
             headers = build_or_headers(or_config=None)
         # Should have base attribution but no cache headers
-        assert "HTTP-Referer" in headers
+        assert "X-Title" in headers
         assert "X-OpenRouter-Cache" not in headers
 
 

@@ -6,6 +6,148 @@ Informal working doc. Not a spec, just enough to start cutting.
 
 Running record of refactor changes as they land. Newest first.
 
+### 2026-07-06 — First real CI run on PR #6: three leftover buckets
+
+Pushed `ci-cleanup`, opened PR #6. CI enumerated what local runs couldn't
+(a monolithic local full run drowns in order-dependent registry contamination —
+1134 "failures" that all pass in isolation and in CI's 8-way slices; that's a
+pre-existing test-isolation problem, out of scope here). Real remaining red:
+
+- **`tests/website/`** — deleted. Both files import scripts from the deleted
+  `website/` dir (`website/scripts/extract-skills.py` → FileNotFoundError).
+- **contributor-check workflow** — deleted (+ its `ci.yml` wiring). It greps
+  `scripts/release.py` for AUTHOR_MAP, but that file was deleted in the
+  strip-down, so any new contributor email fails forever. Restore only if a
+  release/attribution flow returns.
+- **osv-scanner** — `upload-sarif: false`. SARIF upload needs code scanning =
+  GitHub Advanced Security on private repos (repo is currently private; the
+  failure predates this branch — red on main's initial-commit run too).
+  Scan still runs; findings in the job log. Re-enable on going public.
+
+### 2026-07-06 — Finish removing orphaned Nous-hosted plumbing (Workstream C)
+
+Ken's call: rather than xfail the 16 REAL_BUG tests from Workstream B, finish
+removing the orphaned Nous-hosted subsystems that dangled on deleted
+`alvarez_cli.auth` symbols (`resolve_nous_access_token`,
+`_nous_invoke_jwt_is_usable`). All of it could only ever talk to Nous infra
+(Portal / connector / NAS), so it's dead in this fork.
+
+- **relay self-provision** — dropped `self_provision_relay()` (+ `_post_provision`/
+  `_provision_url`) and the boot call in `gateway/run.py`. Kept the generic
+  relay adapter/transport (works with a pinned `GATEWAY_RELAY_SECRET`).
+- **`alvarez gateway enroll`** — deleted the command + parser/dispatch wiring.
+- **chronos cron provider** — deleted the plugin, its contract doc, and the
+  `/api/cron/fire` gateway webhook (`_handle_cron_fire`, which imported the
+  deleted `chronos.verify.get_fire_verifier`).
+- **credential_pool** — dropped the broken `runtime_api_key` nous branch.
+- Deleted/trimmed all the corresponding tests (relay self_provision, enroll
+  dispatch, chronos, cron-fire-webhook, the 2 runtime_api_key tests).
+
+**Still-open follow-ups (dead code, NOT failing CI):**
+- `agent/credential_pool.py` retains deeper nous vestiges — the refresh branch
+  still references the deleted `resolve_nous_runtime_credentials`, plus nous
+  sync/quarantine helpers and ~55 nous tests. Dead code for a removed provider,
+  not reached by any passing test. A full de-nous of this 107KB module is its
+  own pass (gutting ~55 tests); deferred deliberately.
+- Banner constants half-renamed: `_UPSTREAM_REPO_URL` (`banner.py:122`) still
+  `hermes-agent` while `_OFFICIAL_REPO_CANONICAL` is `alvarez-agent`.
+
+**The plan's ~40-file list was incomplete.** The true post-strip-down failing
+set is larger — e.g. `tests/tools/test_web_tools_config.py` (a stale
+`managed_nous_tools_enabled` patch target; fixed the 41 setup errors, 9
+managed-gateway-readiness assertion failures remain as a deeper batch). A clean
+full-suite enumeration (CI, or a HOME-isolated local run) is needed to find the
+remaining batches.
+
+**Test-isolation footgun found:** running the whole suite against a real
+`~/.alvarez` can make live provider calls — a test resolved real xAI OAuth
+creds via a `Path.home()` path that bypasses the conftest's `ALVAREZ_HOME`
+redirect. Local runs must also set `HOME` to a tmp dir.
+
+### 2026-07-05 — CI cleanup: catch up the stale test suite (Workstream B)
+
+Finished the strip-down test catch-up the earlier "tests: catch up" commit
+started. ~40 files triaged; each failure was run and confirmed before acting
+(delete only when the code/dir under test is gone; update the assertion when
+surviving code just lost Nous branding; skip when the feature is disabled).
+
+- **Deleted (dir/feature gone):** desktop/electron tests
+  (`test_desktop_electron_pin`, `test_desktop_mac_entitlements`,
+  `test_assistant_ui_tap_compat`), `test_release_acp_registry`
+  (acp_registry + scripts/release.py gone), `test_gateway_platform_gating`
+  (matrix/discord/slack), `test_windows_native_docs` (website/ docs). Plus
+  targeted single-test/class deletions for removed Nous surfaces (portal
+  pricing, credits, self-provision device-code, provider tables/profiles,
+  vision backend, prompt-cache portal path) and the removed docs-site
+  blueprint generator.
+- **Updated (surviving code, stale assertion):** rebrand fixes — banner
+  `NOUS ALVAREZ`→`ALVAREZ`, computer_use session-id prefix length
+  (`hermes-`=7 → `alvarez-`=8), gateway-restart legacy `hermes` case,
+  OpenRouter attribution `HTTP-Referer`→`X-Title`, managed tool-gateway
+  message, turn-retry field set, xurl skill test (dropped deleted docs
+  mirror), packaging-metadata (dropped removed `web` extra), provider-dir
+  floor 28→27 (removed empty `plugins/model-providers/nous/`), setup gateway
+  tests (removed matrix pre-config → bluebubbles).
+- **Skipped (feature disabled, not removed):** the remaining `alvarez update`
+  / passive-update-check tests, via the same `@update_disabled` marker the
+  earlier catch-up used (`test_cmd_update_docker`, `test_update_autostash`,
+  `test_update_check`, `test_update_concurrent_quarantine`).
+- **Source fixes (not just tests):** pruned 4 phantom entries
+  (`dashboard`, `serve`, `whatsapp`, `whatsapp-cloud`) from
+  `main.py:_BUILTIN_SUBCOMMANDS` — the tests were correctly flagging stale
+  source.
+
+**Surfaced, NOT papered over — genuine source bugs from an incomplete Nous
+removal (16 tests left failing on purpose):**
+- `agent/credential_pool.py:216` — `PooledCredential.runtime_api_key` (nous
+  branch) calls the deleted `alvarez_cli.auth._nous_invoke_jwt_is_usable`.
+  Fails 2 tests in `test_credential_pool.py`.
+- `alvarez_cli.auth.resolve_nous_access_token` is imported by live code
+  (`gateway/relay/__init__.py:492`, `alvarez_cli/gateway_enroll.py:148,184`,
+  `plugins/cron_providers/chronos/_nas_client.py:45`) but **defined nowhere**
+  — lazy imports inside function bodies, so it only breaks when called
+  (relay self-provision swallows the ImportError → silent no-op). Fails 3
+  tests in `test_relay_multiplatform.py` + 11 in `test_self_provision.py`.
+  Decision needed (Ken): finish removing the Nous provisioning path (relay
+  self-provision, gateway enroll, chronos NAS auth + these tests) OR restore
+  the two missing symbols in `auth.py`.
+- Minor: banner constants half-renamed in source — `_OFFICIAL_REPO_CANONICAL`
+  → alvarez, `_UPSTREAM_REPO_URL` (`banner.py:122`) still `hermes-agent`.
+
+Pre-existing order-dependent flakes left as-is (all fail on a clean
+`784eec906` too, not part of this cleanup):
+`test_projects_rpc.py::test_discover_repos_from_full_history`,
+`test_subagent_child_mirror.py::test_prompt_submit_rejected_while_child_run_active`,
+and `test_api_key_providers.py::TestZaiEndpointAutoDetect::test_probe_success_returns_detected_url`
+(passes in isolation; a preceding `tests/agent/*` test leaves a cached zai
+endpoint — confirmed pre-existing on base).
+
+Verification: the ~40 touched files run together give 833 passed / 28 skipped
+/ 3 failed, where the 3 are the 2 credential_pool REAL_BUGs above + the zai
+flake. The relay REAL_BUG pair adds 14 more (3 + 11), untouched.
+
+### 2026-07-05 — CI cleanup: prune dead workflow jobs (Workstream A)
+
+CI was red across the board since the initial public commit — leftover from
+the Phase 3 strip-down, not from recent feature work. First pass removes CI
+workflow jobs that reference deleted dirs (`apps/`, `web/`, `docs-site/`,
+`website/`):
+
+- **`typecheck.yml`**: matrix reduced `[ui-tui, web, apps/bootstrap-installer,
+  apps/desktop, apps/shared]` → `[ui-tui]` (only survivor); dropped the
+  "Build desktop app" job (`npm run --prefix apps/desktop build` — dir gone).
+- **`docs-site-checks.yml`**: deleted (built the removed Docusaurus site);
+  removed its `docs-site` job from `ci.yml` and the `- docs-site` entry in
+  `all-checks-pass` `needs:`.
+- **Dead website-docs pipeline deleted** (`deploy-site.yml`, `skills-index.yml`,
+  `skills-index-freshness.yml`): all three built/deployed/watched the removed
+  `website/` Docusaurus site and were hard-gated to `NousResearch/hermes-agent`
+  — they only ever skip in this fork.
+- **`osv-scanner.yml`**: dropped the `--lockfile=website/package-lock.json` arg
+  (file gone). The scanner core already passed; its remaining red is unrelated
+  (`Upload to code-scanning` needs GitHub Advanced Security enabled on the repo
+  — a settings issue, not a code one).
+
 ### 2026-07-04 — personalities → moods, Alvarez mood set
 
 SOUL.md is the identity now; the overlays are *moods* — registers layered on

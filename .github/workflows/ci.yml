@@ -18,8 +18,6 @@ on:
 permissions:
   contents: read
   pull-requests: write # needed by lint (PR comment) + supply-chain (PR comment)
-  actions: read # needed by osv-scanner (SARIF upload)
-  security-events: write # needed by osv-scanner (SARIF upload)
   packages: write # needed by docker build
 
 concurrency:
@@ -76,23 +74,11 @@ jobs:
     if: needs.detect.outputs.frontend == 'true'
     uses: ./.github/workflows/typecheck.yml
 
-  docs-site:
-    name: Docs Site
-    needs: detect
-    if: needs.detect.outputs.site == 'true'
-    uses: ./.github/workflows/docs-site-checks.yml
-
   history-check:
     name: Deny unrelated histories
     needs: detect
     if: needs.detect.outputs.event_name == 'pull_request'
     uses: ./.github/workflows/history-check.yml
-
-  contributor-check:
-    name: Check contributors
-    needs: detect
-    if: needs.detect.outputs.python == 'true'
-    uses: ./.github/workflows/contributor-check.yml
 
   uv-lockfile:
     name: Check uv.lock
@@ -140,9 +126,7 @@ jobs:
       - tests
       - lint
       - typecheck
-      - docs-site
       - history-check
-      - contributor-check
       - uv-lockfile
       - docker-lint
       - supply-chain
