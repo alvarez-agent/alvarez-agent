@@ -6,8 +6,7 @@ scope for vulnerability reports.
 
 ## 1. Reporting a Vulnerability
 
-Report privately via [GitHub Security Advisories](https://github.com/NousResearch/hermes-agent/security/advisories/new)
-(this fork is private — report to the repo owner directly). Do not open public issues for
+Report privately via [GitHub Security Advisories](https://github.com/alvarez-agent/alvarez-agent/security/advisories/new). Do not open public issues for
 security vulnerabilities. **Alvarez Agent does not operate a bug
 bounty program.**
 
