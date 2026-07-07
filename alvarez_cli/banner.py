@@ -119,8 +119,8 @@ _UPDATE_CHECK_CACHE_SECONDS = 6 * 3600
 # (e.g. nix-built alvarez — no local git history to count against).
 UPDATE_AVAILABLE_NO_COUNT = -1
 
-_UPSTREAM_REPO_URL = "https://github.com/NousResearch/hermes-agent.git"
-_OFFICIAL_REPO_CANONICAL = "github.com/nousresearch/alvarez-agent"
+_UPSTREAM_REPO_URL = "https://github.com/alvarez-agent/alvarez-agent.git"
+_OFFICIAL_REPO_CANONICAL = "github.com/alvarez-agent/alvarez-agent"
 
 
 def _canonical_github_remote(url: str | None) -> str:
@@ -303,10 +303,10 @@ def check_for_updates() -> Optional[int]:
     if behind but the count is unknown, ``0`` if up-to-date, or ``None`` if
     the check failed or doesn't apply. Cached for 6 hours.
     """
-    # ponytail: update channel severed with the NousResearch upstream
-    # (hermes separation, 2026-07-03). Re-enable by pointing
-    # _UPSTREAM_REPO_URL/_OFFICIAL_REPO_CANONICAL at the new Alvarez origin
-    # once one exists and deleting this early return.
+    # ponytail: update check disabled since the hermes separation
+    # (2026-07-03). _UPSTREAM_REPO_URL/_OFFICIAL_REPO_CANONICAL now point at
+    # the alvarez-agent origin, so re-enabling is just deleting this early
+    # return — kept off until there's an update policy for the fork.
     return None
 
     alvarez_home = get_alvarez_home()
@@ -462,7 +462,7 @@ def get_git_banner_state(repo_dir: Optional[Path] = None) -> Optional[dict]:
     return {"upstream": upstream, "local": local, "ahead": max(ahead, 0)}
 
 
-_RELEASE_URL_BASE = "https://github.com/NousResearch/hermes-agent/releases/tag"
+_RELEASE_URL_BASE = "https://github.com/alvarez-agent/alvarez-agent/releases/tag"
 _latest_release_cache: Optional[tuple] = None  # (tag, url) once resolved
 
 
@@ -471,11 +471,11 @@ def get_latest_release_tag(repo_dir: Optional[Path] = None) -> Optional[tuple]:
 
     Local-only — runs ``git describe --tags --abbrev=0`` against the
     Alvarez checkout. Cached per-process. Release URL always points at the
-    canonical NousResearch/hermes-agent repo (forks don't get a link).
+    canonical alvarez-agent/alvarez-agent repo (forks don't get a link).
     """
-    # ponytail: no release channel since the hermes separation (2026-07-03);
-    # _RELEASE_URL_BASE points at the old upstream. Restore when Alvarez has
-    # its own releases.
+    # ponytail: no release channel since the hermes separation (2026-07-03).
+    # _RELEASE_URL_BASE now points at the alvarez-agent repo; restore by
+    # deleting this early return once Alvarez publishes its own releases.
     return None
 
     global _latest_release_cache
