@@ -211,25 +211,6 @@ def test_gateway_pid_scan_hides_wmic_and_powershell_windows(monkeypatch):
     ]
 
 
-def test_stale_dashboard_windows_scan_hides_wmic(monkeypatch):
-    from alvarez_cli import main
-    from alvarez_cli import _subprocess_compat
-
-    captured = []
-
-    def fake_run(cmd, **kwargs):
-        captured.append((cmd, kwargs))
-        return _Completed(stdout="CommandLine=alvarez dashboard\nProcessId=123\n")
-
-    monkeypatch.setattr(main.sys, "platform", "win32")
-    monkeypatch.setattr(_subprocess_compat, "IS_WINDOWS", True)
-    monkeypatch.setattr(_subprocess_compat, "windows_hide_flags", lambda: _CREATE_NO_WINDOW)
-    monkeypatch.setattr(main.subprocess, "run", fake_run)
-
-    assert main._find_stale_dashboard_pids() == [123]
-    assert captured[0][1]["creationflags"] == _CREATE_NO_WINDOW
-
-
 def test_gateway_force_kill_hides_taskkill_window(monkeypatch):
     from gateway import status
     from alvarez_cli import _subprocess_compat

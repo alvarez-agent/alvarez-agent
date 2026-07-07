@@ -33,8 +33,8 @@ def print_error(text: str) -> None:
 
 
 def print_header(text: str) -> None:
-    """Print a bold yellow header."""
-    print(color(f"\n  {text}", Colors.YELLOW))
+    """Print a magenta header."""
+    print(color(f"\n  {text}", Colors.MAGENTA))
 
 
 # ─── Input Prompts ────────────────────────────────────────────────────────────
@@ -54,7 +54,7 @@ def prompt(
     Returns empty string on Ctrl-C or EOF.
     """
     suffix = f" [{default}]" if default else ""
-    display = color(f"  {question}{suffix}: ", Colors.YELLOW)
+    display = color(f"  {question}{suffix}: ", Colors.MAGENTA)
 
     try:
         if password:

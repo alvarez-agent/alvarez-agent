@@ -24,6 +24,14 @@ def alvarez_home(tmp_path, monkeypatch):
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     monkeypatch.setenv("ALVAREZ_HOME", str(home))
 
+    # Pin DEFAULT_DB_PATH too: it's a module-level constant frozen at
+    # alvarez_state import time, so in a full-suite run (where another test
+    # file imports alvarez_state before this fixture patches the env)
+    # SessionDB() would otherwise write goals into the real ~/.alvarez/state.db.
+    import alvarez_state
+
+    monkeypatch.setattr(alvarez_state, "DEFAULT_DB_PATH", home / "state.db")
+
     # Bust the goal-module's DB cache for each test so it re-resolves ALVAREZ_HOME.
     from alvarez_cli import goals
 

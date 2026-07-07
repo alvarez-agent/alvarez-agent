@@ -3696,25 +3696,25 @@ def test_config_set_model_switches_agent_without_touching_env(monkeypatch):
         server._sessions.clear()
 
 
-def test_config_set_personality_rejects_unknown_name(monkeypatch):
+def test_config_set_mood_rejects_unknown_name(monkeypatch):
     monkeypatch.setattr(
         server,
-        "_available_personalities",
+        "_available_moods",
         lambda cfg=None: {"helpful": "You are helpful."},
     )
     resp = server.handle_request(
         {
             "id": "1",
             "method": "config.set",
-            "params": {"key": "personality", "value": "bogus"},
+            "params": {"key": "mood", "value": "bogus"},
         }
     )
 
     assert "error" in resp
-    assert "Unknown personality" in resp["error"]["message"]
+    assert "Unknown mood" in resp["error"]["message"]
 
 
-def test_config_set_personality_preserves_history_and_returns_info(monkeypatch):
+def test_config_set_mood_preserves_history_and_returns_info(monkeypatch):
     agent = types.SimpleNamespace(
         ephemeral_system_prompt=None, _cached_system_prompt="old"
     )
@@ -3728,7 +3728,7 @@ def test_config_set_personality_preserves_history_and_returns_info(monkeypatch):
     server._sessions["sid"] = session
     monkeypatch.setattr(
         server,
-        "_available_personalities",
+        "_available_moods",
         lambda cfg=None: {"helpful": "You are helpful."},
     )
     monkeypatch.setattr(
@@ -3741,7 +3741,7 @@ def test_config_set_personality_preserves_history_and_returns_info(monkeypatch):
         {
             "id": "1",
             "method": "config.set",
-            "params": {"session_id": "sid", "key": "personality", "value": "helpful"},
+            "params": {"session_id": "sid", "key": "mood", "value": "helpful"},
         }
     )
 
@@ -3751,7 +3751,7 @@ def test_config_set_personality_preserves_history_and_returns_info(monkeypatch):
     assert len(session["history"]) == 2
     assert session["history"][0] == {"role": "user", "text": "hi"}
     assert session["history"][1]["role"] == "user"
-    assert "personality" in session["history"][1]["content"].lower()
+    assert "mood" in session["history"][1]["content"].lower()
     assert "You are helpful." in session["history"][1]["content"]
     assert session["history_version"] == 5
     # Agent's system prompt was updated in-place; cached prompt untouched
@@ -5159,7 +5159,7 @@ def test_config_set_model_allowed_when_idle(monkeypatch):
 
 
 def test_mirror_slash_side_effects_rejects_mutating_commands_while_running(monkeypatch):
-    """Slash worker passthrough (e.g. /model, /personality, /prompt,
+    """Slash worker passthrough (e.g. /model, /mood, /prompt,
     /compress) must reject during an in-flight turn.  Same race as
     config.set — mutates live agent state while run_conversation is
     reading it."""
@@ -5183,7 +5183,7 @@ def test_mirror_slash_side_effects_rejects_mutating_commands_while_running(monke
 
     for cmd, expected_name in [
         ("/model new/model", "model"),
-        ("/personality default", "personality"),
+        ("/mood default", "mood"),
         ("/prompt", "prompt"),
         ("/compress", "compress"),
     ]:

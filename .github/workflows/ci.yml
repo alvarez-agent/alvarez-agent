@@ -18,8 +18,8 @@ on:
 permissions:
   contents: read
   pull-requests: write # needed by lint (PR comment) + supply-chain (PR comment)
-  actions: read # needed by osv-scanner (SARIF upload)
-  security-events: write # needed by osv-scanner (SARIF upload)
+  actions: read # required by osv-scanner's reusable workflow, even with upload-sarif: false
+  security-events: write # required by osv-scanner's reusable workflow, even with upload-sarif: false
   packages: write # needed by docker build
 
 concurrency:
@@ -76,23 +76,11 @@ jobs:
     if: needs.detect.outputs.frontend == 'true'
     uses: ./.github/workflows/typecheck.yml
 
-  docs-site:
-    name: Docs Site
-    needs: detect
-    if: needs.detect.outputs.site == 'true'
-    uses: ./.github/workflows/docs-site-checks.yml
-
   history-check:
     name: Deny unrelated histories
     needs: detect
     if: needs.detect.outputs.event_name == 'pull_request'
     uses: ./.github/workflows/history-check.yml
-
-  contributor-check:
-    name: Check contributors
-    needs: detect
-    if: needs.detect.outputs.python == 'true'
-    uses: ./.github/workflows/contributor-check.yml
 
   uv-lockfile:
     name: Check uv.lock
@@ -140,9 +128,7 @@ jobs:
       - tests
       - lint
       - typecheck
-      - docs-site
       - history-check
-      - contributor-check
       - uv-lockfile
       - docker-lint
       - supply-chain
@@ -225,7 +211,7 @@ jobs:
 
       - name: Upload baseline to cache (main only)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ci-timings-baseline.json
           key: ci-timings-baseline-${{ github.run_id }}

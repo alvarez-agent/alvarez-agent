@@ -181,18 +181,6 @@ def test_get_platform_tools_context_engine_respects_explicit_empty_selection():
     assert "context_engine" not in enabled
 
 
-def test_get_platform_tools_default_whatsapp_includes_web():
-    enabled = _get_platform_tools({}, "whatsapp")
-
-    assert "web" in enabled
-
-
-def test_get_platform_tools_homeassistant_platform_keeps_homeassistant_toolset():
-    enabled = _get_platform_tools({}, "homeassistant")
-
-    assert "homeassistant" in enabled
-
-
 def test_get_platform_tools_homeassistant_toolset_enabled_for_cron_when_hass_token_set(monkeypatch):
     """HA toolset is runtime-gated by check_fn (requires HASS_TOKEN).
 
@@ -719,36 +707,34 @@ def test_reconfigure_lists_enabled_web_without_existing_provider_config(monkeypa
 
 
 class TestPlatformToolsetConsistency:
-    """Every platform in tools_config.PLATFORMS must have a matching toolset."""
+    """Every *surviving* platform must have a matching toolset.
 
-    def test_all_platforms_have_toolset_definitions(self):
-        """Each platform's default_toolset must exist in TOOLSETS."""
+    The PLATFORMS registry still lists messaging platforms stripped in the
+    Alvarez fork (only Telegram remains) so legacy configs stay readable;
+    those intentionally have no toolset definitions anymore.
+    """
+
+    # Platforms that survived the Alvarez strip-down.
+    SURVIVING = {"cli", "telegram", "webhook", "api_server", "cron"}
+
+    def test_all_surviving_platforms_have_toolset_definitions(self):
+        """Each surviving platform's default_toolset must exist in TOOLSETS."""
         from alvarez_cli.tools_config import PLATFORMS
         from toolsets import TOOLSETS
 
-        for platform, meta in PLATFORMS.items():
-            ts_name = meta["default_toolset"]
+        for platform in self.SURVIVING:
+            ts_name = PLATFORMS[platform]["default_toolset"]
             assert ts_name in TOOLSETS, (
                 f"Platform {platform!r} references toolset {ts_name!r} "
                 f"which is not defined in toolsets.py"
             )
 
     def test_gateway_toolset_includes_all_messaging_platforms(self):
-        """alvarez-gateway includes list should cover all messaging platforms."""
-        from alvarez_cli.tools_config import PLATFORMS
+        """alvarez-gateway includes exactly the surviving messaging platforms."""
         from toolsets import TOOLSETS
 
         gateway_includes = set(TOOLSETS["alvarez-gateway"]["includes"])
-        # Exclude non-messaging platforms from the check
-        non_messaging = {"cli", "api_server", "cron"}
-        for platform, meta in PLATFORMS.items():
-            if platform in non_messaging:
-                continue
-            ts_name = meta["default_toolset"]
-            assert ts_name in gateway_includes, (
-                f"Platform {platform!r} toolset {ts_name!r} missing from "
-                f"alvarez-gateway includes"
-            )
+        assert gateway_includes == {"alvarez-telegram", "alvarez-webhook"}
 
     def test_skills_config_covers_tools_config_platforms(self):
         """skills_config.PLATFORMS should have entries for all gateway platforms."""
@@ -1035,7 +1021,13 @@ def test_get_platform_tools_recovers_non_configurable_toolsets_from_composite():
     }
     fake_toolsets["alvarez-_test_platform"] = {
         "description": "test composite",
-        "tools": ["web_search", "web_extract", "terminal", "process", "_test_special_tool"],
+        # read/close_terminal are registered into the ``terminal`` toolset when
+        # model_tools is imported (as it is in a full-suite run); list them so
+        # the toolset resolves to a subset of this composite either way.
+        "tools": [
+            "web_search", "web_extract", "terminal", "process",
+            "read_terminal", "close_terminal", "_test_special_tool",
+        ],
         "includes": [],
     }
 
@@ -1115,12 +1107,6 @@ def test_save_platform_tools_strips_restricted_toolsets():
     assert "discord_admin" not in saved
     assert "web" in saved
     assert "terminal" in saved
-
-
-def test_get_platform_tools_feishu_includes_doc_and_drive():
-    enabled = _get_platform_tools({}, "feishu")
-    assert "feishu_doc" in enabled
-    assert "feishu_drive" in enabled
 
 
 def test_reconfigure_browser_provider_overwrites_stale_use_gateway():

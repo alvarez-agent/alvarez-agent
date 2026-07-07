@@ -380,6 +380,18 @@ def _hermetic_environment(tmp_path, monkeypatch):
     # tests opt back in by patching the security config directly.
     monkeypatch.setenv("TIRITH_ENABLED", "false")
 
+    # 4c. Never open a real web browser during tests. Several OAuth "login"
+    #     flows (xai-oauth, spotify, minimax, anthropic, mcp) call
+    #     webbrowser.open(authorize_url) as a convenience. On a developer's
+    #     graphical machine that pops a real provider authorize page (e.g. the
+    #     xAI "Authorize Grok Build" screen) mid-suite; CI is headless so it
+    #     silently no-ops there, which is why it slips past review. Force the
+    #     "couldn't open" path everywhere. Tests that assert on the open call
+    #     re-patch webbrowser in their own scope, which overrides this.
+    import webbrowser as _webbrowser
+    for _fn in ("open", "open_new", "open_new_tab"):
+        monkeypatch.setattr(_webbrowser, _fn, lambda *a, **k: False, raising=False)
+
     # 5. Reset plugin singleton so tests don't leak plugins from
     #    ~/.alvarez/plugins/ (which, per step 3, is now empty — but the
     #    singleton might still be cached from a previous test).

@@ -13,6 +13,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from alvarez_cli.main import cmd_update
+from tests.alvarez_cli.conftest import update_disabled
 
 
 def _make_run_side_effect(
@@ -47,6 +48,7 @@ def _make_run_side_effect(
     return side_effect
 
 
+@update_disabled
 class TestUpdateYesConfigMigration:
     """--yes auto-answers the config-migration prompt and skips API-key prompts."""
 

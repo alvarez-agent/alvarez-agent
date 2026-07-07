@@ -150,12 +150,12 @@ gateway:
     truncated_suffix:      "… (kısaltıldı; tam çıktı için terminalinizde `alvarez kanban …` komutunu kullanın)"
     no_output:             "(çıktı yok)"
 
-  personality:
+  mood:
     none_configured:       "`{path}/config.yaml` içinde yapılandırılmış kişilik yok"
     header:                "🎭 **Mevcut Kişilikler**\n"
     none_option:           "• `none` — (kişilik kaplaması yok)"
     item:                  "• `{name}` — {preview}"
-    usage:                 "\nKullanım: `/personality <name>`"
+    usage:                 "\nKullanım: `/mood <name>`"
     save_failed:           "⚠️ Kişilik değişikliği kaydedilemedi: {error}"
     cleared:               "🎭 Kişilik temizlendi — temel ajan davranışı kullanılıyor.\n_(bir sonraki mesajda etkili olur)_"
     set_to:                "🎭 Kişilik **{name}** olarak ayarlandı\n_(bir sonraki mesajda etkili olur)_"

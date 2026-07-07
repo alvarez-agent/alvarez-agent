@@ -22,11 +22,13 @@ from unittest.mock import patch
 import pytest
 
 from alvarez_cli.main import _cmd_update_check, cmd_update
+from tests.alvarez_cli.conftest import update_disabled
 
 
 # ---------- cmd_update (apply path) ----------
 
 
+@update_disabled
 @patch("alvarez_cli.config.is_managed", return_value=False)
 @patch("alvarez_cli.config.detect_install_method", return_value="docker")
 @patch("subprocess.run")
@@ -49,6 +51,7 @@ def test_cmd_update_in_docker_prints_guidance_and_exits(
     assert git_calls == [], f"expected no git calls, got: {git_calls}"
 
 
+@update_disabled
 @patch("alvarez_cli.config.is_managed", return_value=False)
 @patch("alvarez_cli.config.detect_install_method", return_value="docker")
 @patch("subprocess.run")
@@ -68,6 +71,7 @@ def test_cmd_update_check_in_docker_prints_guidance_and_exits(
     assert git_calls == [], f"expected no git calls, got: {git_calls}"
 
 
+@update_disabled
 @patch("alvarez_cli.config.is_managed", return_value=False)
 @patch("alvarez_cli.config.detect_install_method", return_value="docker")
 @patch("subprocess.run")
@@ -171,7 +175,7 @@ def test_format_docker_update_message_contents():
     msg = format_docker_update_message()
 
     # Primary command — the entire reason this message exists.
-    assert "docker pull nousresearch/alvarez-agent:latest" in msg
+    assert "docker pull <your-alvarez-agent-image>:latest" in msg
 
     # The four key concepts the message must cover:
     assert "restart" in msg.lower(), "must explain that a restart is required"

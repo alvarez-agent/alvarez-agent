@@ -947,50 +947,50 @@ class CLICommandsMixin:
         _cprint(f"  Original session: {parent_session_id}")
         _cprint(f"  Branch session:   {new_session_id}")
 
-    def _handle_personality_command(self, cmd: str):
-        """Handle the /personality command to set predefined personalities."""
+    def _handle_mood_command(self, cmd: str):
+        """Handle the /mood command to set a configured mood overlay."""
         from cli import save_config_value
         parts = cmd.split(maxsplit=1)
-        
+
         if len(parts) > 1:
-            # Set personality
-            personality_name = parts[1].strip().lower()
-            
-            if personality_name in {"none", "default", "neutral"}:
+            # Set mood
+            mood_name = parts[1].strip().lower()
+
+            if mood_name in {"none", "default", "neutral"}:
                 self.system_prompt = ""
                 self.agent = None  # Force re-init
                 if save_config_value("agent.system_prompt", ""):
-                    print("(^_^)b Personality cleared (saved to config)")
+                    print("(^_^)b Mood cleared (saved to config)")
                 else:
-                    print("(^_^) Personality cleared (session only)")
-                print("  No personality overlay — using base agent behavior.")
-            elif personality_name in self.personalities:
-                self.system_prompt = self._resolve_personality_prompt(self.personalities[personality_name])
+                    print("(^_^) Mood cleared (session only)")
+                print("  No mood overlay — using base agent behavior.")
+            elif mood_name in self.moods:
+                self.system_prompt = self._resolve_mood_prompt(self.moods[mood_name])
                 self.agent = None  # Force re-init
                 if save_config_value("agent.system_prompt", self.system_prompt):
-                    print(f"(^_^)b Personality set to '{personality_name}' (saved to config)")
+                    print(f"(^_^)b Mood set to '{mood_name}' (saved to config)")
                 else:
-                    print(f"(^_^) Personality set to '{personality_name}' (session only)")
+                    print(f"(^_^) Mood set to '{mood_name}' (session only)")
                 print(f"  \"{self.system_prompt[:60]}{'...' if len(self.system_prompt) > 60 else ''}\"")
             else:
-                print(f"(._.) Unknown personality: {personality_name}")
-                print(f"  Available: none, {', '.join(self.personalities.keys())}")
+                print(f"(._.) Unknown mood: {mood_name}")
+                print(f"  Available: none, {', '.join(self.moods.keys())}")
         else:
-            # Show available personalities
+            # Show available moods
             print()
             print("+" + "-" * 50 + "+")
-            print("|" + " " * 12 + "(^o^)/ Personalities" + " " * 15 + "|")
+            print("|" + " " * 12 + "(^o^)/ Moods" + " " * 23 + "|")
             print("+" + "-" * 50 + "+")
             print()
-            print(f"  {'none':<12} - (no personality overlay)")
-            for name, prompt in self.personalities.items():
+            print(f"  {'none':<12} - (no mood overlay)")
+            for name, prompt in self.moods.items():
                 if isinstance(prompt, dict):
                     preview = prompt.get("description") or prompt.get("system_prompt", "")[:50]
                 else:
                     preview = str(prompt)[:50]
                 print(f"  {name:<12} - {preview}")
             print()
-            print("  Usage: /personality <name>")
+            print("  Usage: /mood <name>")
             print()
 
     def _handle_pet_command(self, cmd: str):

@@ -64,6 +64,11 @@ def _api_url(api_url: str | None = None) -> str:
     ).rstrip("/")
 
 
+def onboarding_service_configured(api_url: str | None = None) -> bool:
+    """True when an onboarding service URL is configured (env or explicit)."""
+    return bool(_api_url(api_url))
+
+
 def is_valid_telegram_bot_token(token: object) -> bool:
     """Return True when *token* has Telegram's bot-token shape."""
     return isinstance(token, str) and bool(_TELEGRAM_BOT_TOKEN_RE.match(token))
@@ -286,6 +291,12 @@ def auto_setup_telegram_bot_result(
     """Run the full automatic Telegram bot creation flow."""
     _ = manager_bot, profile_name
     resolved_api_url = _api_url(api_url)
+    if not resolved_api_url:
+        print()
+        print("  ✗ No Telegram onboarding service is configured for this build.")
+        print(f"    Set {TELEGRAM_ONBOARDING_URL_ENV} to a self-hosted endpoint,")
+        print("    or use the manual @BotFather setup.")
+        return None
     print()
     print(f"  Contacting Alvarez Telegram onboarding service: {resolved_api_url}")
     sys.stdout.flush()

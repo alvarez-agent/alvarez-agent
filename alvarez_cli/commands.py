@@ -137,7 +137,7 @@ COMMAND_REGISTRY: list[CommandDef] = [
                "Configuration", aliases=("codex_runtime",),
                args_hint="[auto|codex_app_server]"),
 
-    CommandDef("personality", "Set a predefined personality", "Configuration",
+    CommandDef("mood", "Set Alvarez's mood", "Configuration",
                args_hint="[name]"),
     CommandDef("statusbar", "Toggle the context/model status bar", "Configuration",
                cli_only=True, aliases=("sb",)),
@@ -1354,7 +1354,7 @@ class SlashCommandCompleter(Completer):
     # These should NOT receive a trailing space in completions because:
     # - The TUI's submit handler applies completions on Enter if input differs
     # - Adding space makes "/model" → "/model " which blocks picker execution
-    _PICKER_COMMANDS = frozenset({"model", "skin", "personality"})
+    _PICKER_COMMANDS = frozenset({"model", "skin", "mood"})
 
     @staticmethod
     def _completion_text(cmd_name: str, word: str) -> str:
@@ -1365,7 +1365,7 @@ class SlashCommandCompleter(Completer):
         menu. Appending a trailing space keeps the dropdown visible and makes
         backspacing retrigger it naturally.
 
-        However, commands that open pickers (model, skin, personality) should
+        However, commands that open pickers (model, skin, mood) should
         NOT get a trailing space — the TUI would apply the completion on Enter
         and block the picker from opening.
         """
@@ -1831,24 +1831,22 @@ class SlashCommandCompleter(Completer):
             )
 
     @staticmethod
-    def _personality_completions(sub_text: str, sub_lower: str):
-        """Yield completions for /personality from configured personalities."""
+    def _mood_completions(sub_text: str, sub_lower: str):
+        """Yield completions for /mood from configured moods."""
         try:
-            # Resolve from the same source the runtime applies personalities —
-            # agent.personalities via the CLI config (which ships the built-ins).
-            # load_config()'s schema has no agent.personalities, so the completer
-            # used to come back empty even with personalities available.
+            # Resolve from the same source the runtime applies moods —
+            # agent.moods via the CLI config (which ships the built-ins).
             from cli import load_cli_config
 
-            personalities = (load_cli_config().get("agent") or {}).get("personalities", {}) or {}
+            moods = (load_cli_config().get("agent") or {}).get("moods", {}) or {}
             if "none".startswith(sub_lower) and "none" != sub_lower:
                 yield Completion(
                     "none",
                     start_position=-len(sub_text),
                     display="none",
-                    display_meta="clear personality overlay",
+                    display_meta="clear mood overlay",
                 )
-            for name, prompt in personalities.items():
+            for name, prompt in moods.items():
                 if name.startswith(sub_lower) and name != sub_lower:
                     if isinstance(prompt, dict):
                         meta = prompt.get("description") or prompt.get("system_prompt", "")[:50]
@@ -1889,8 +1887,8 @@ class SlashCommandCompleter(Completer):
                 if base_cmd == "/skin":
                     yield from self._skin_completions(sub_text, sub_lower)
                     return
-                if base_cmd == "/personality":
-                    yield from self._personality_completions(sub_text, sub_lower)
+                if base_cmd == "/mood":
+                    yield from self._mood_completions(sub_text, sub_lower)
                     return
 
             # /tools needs multi-word completion (subcommand + toolset name)

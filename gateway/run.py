@@ -6202,16 +6202,8 @@ class GatewayRunner(GatewayAuthorizationMixin, GatewayKanbanWatchersMixin, Gatew
             from gateway.relay import (
                 register_relay_adapter,
                 relay_url,
-                self_provision_relay,
                 send_relay_policy,
             )
-
-            # Boot-time relay self-provision: resolve the agent's NAS token ->
-            # POST /relay/provision -> set GATEWAY_RELAY_* in os.environ BEFORE
-            # registration reads them. No-op when relay is unconfigured, a secret
-            # is already pinned, or no NAS token resolves (self-hosted, unenrolled).
-            # Never raises.
-            self_provision_relay()
 
             if register_relay_adapter():
                 logger.info("relay adapter registered (connector at %s)", relay_url())
@@ -8908,8 +8900,8 @@ class GatewayRunner(GatewayAuthorizationMixin, GatewayKanbanWatchersMixin, Gatew
         if canonical == "codex-runtime":
             return await self._handle_codex_runtime_command(event)
 
-        if canonical == "personality":
-            return await self._handle_personality_command(event)
+        if canonical == "mood":
+            return await self._handle_mood_command(event)
 
         if canonical == "kanban":
             return await self._handle_kanban_command(event)

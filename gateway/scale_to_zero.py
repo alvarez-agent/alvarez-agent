@@ -88,6 +88,19 @@ def _platform_name(platform: Any) -> str:
     return str(value).strip().lower()
 
 
+# The wake-URL registration paths (relay self-provision, `alvarez gateway
+# enroll --wake-url`) were removed along with the rest of the Nous
+# provisioning plumbing. `relay_wake_url()` still reads a local env var, but
+# nothing forwards it to the connector anymore, so a truthy wake_url no
+# longer proves the connector can actually wake this instance. Arming on it
+# anyway would suspend a gateway into the exact "black hole" the wake_url
+# precondition below exists to prevent (§3.4(1)).
+#
+# Flip this back on once a real registration path exists again (e.g. the
+# relay WS hello frame carrying wake_url on every connect).
+_WAKE_URL_REGISTRATION_AVAILABLE = False
+
+
 def should_arm(
     *,
     enabled: bool,
@@ -100,7 +113,12 @@ def should_arm(
     wakeUrl is registered (a suspended instance with no reachable wake target is
     a black hole — §3.4(1)). Any unmet -> the watcher never starts (no idle
     timer, no dormancy), so a non-opted instance behaves exactly as today.
+
+    Currently hard-disarmed regardless of the above — see
+    ``_WAKE_URL_REGISTRATION_AVAILABLE``.
     """
+    if not _WAKE_URL_REGISTRATION_AVAILABLE:
+        return False
     return bool(enabled) and bool(relay_only_or_absent) and bool(wake_url)
 
 

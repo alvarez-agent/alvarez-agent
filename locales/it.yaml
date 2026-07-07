@@ -150,12 +150,12 @@ gateway:
     truncated_suffix:      "… (troncato; usa `alvarez kanban …` nel terminale per l'output completo)"
     no_output:             "(nessun output)"
 
-  personality:
+  mood:
     none_configured:       "Nessuna personalità configurata in `{path}/config.yaml`"
     header:                "🎭 **Personalità disponibili**\n"
     none_option:           "• `none` — (nessun overlay di personalità)"
     item:                  "• `{name}` — {preview}"
-    usage:                 "\nUso: `/personality <name>`"
+    usage:                 "\nUso: `/mood <name>`"
     save_failed:           "⚠️ Salvataggio del cambio di personalità non riuscito: {error}"
     cleared:               "🎭 Personalità cancellata — uso il comportamento base dell'agente.\n_(verrà applicato al prossimo messaggio)_"
     set_to:                "🎭 Personalità impostata su **{name}**\n_(verrà applicato al prossimo messaggio)_"

@@ -150,12 +150,12 @@ gateway:
     truncated_suffix:      "… (잘림; 전체 출력을 보려면 터미널에서 `alvarez kanban …`을 사용하세요)"
     no_output:             "(출력 없음)"
 
-  personality:
+  mood:
     none_configured:       "`{path}/config.yaml`에 구성된 성격이 없습니다"
     header:                "🎭 **사용 가능한 성격**\n"
     none_option:           "• `none` — (성격 오버레이 없음)"
     item:                  "• `{name}` — {preview}"
-    usage:                 "\n사용법: `/personality <name>`"
+    usage:                 "\n사용법: `/mood <name>`"
     save_failed:           "⚠️ 성격 변경 저장에 실패했습니다: {error}"
     cleared:               "🎭 성격이 해제되었습니다 — 기본 에이전트 동작을 사용합니다.\n_(다음 메시지부터 적용됩니다)_"
     set_to:                "🎭 성격이 **{name}**(으)로 설정되었습니다\n_(다음 메시지부터 적용됩니다)_"

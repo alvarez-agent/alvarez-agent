@@ -91,8 +91,12 @@ def test_accepts_bare_strings_too():
 # ── should_arm (D1/D11/§3.4(1)) ──────────────────────────────────────────────
 
 
-def test_arm_requires_all_three():
-    assert should_arm(enabled=True, relay_only_or_absent=True, wake_url="https://x") is True
+def test_arm_hard_disarmed_pending_wake_url_registration():
+    """Even with every legacy precondition met, should_arm stays disarmed: the
+    registration paths that would let the connector learn wake_url are gone
+    (see gateway/scale_to_zero.py's _WAKE_URL_REGISTRATION_AVAILABLE), so a
+    truthy wake_url no longer proves the connector can wake this instance."""
+    assert should_arm(enabled=True, relay_only_or_absent=True, wake_url="https://x") is False
 
 
 def test_arm_blocked_when_flag_off():

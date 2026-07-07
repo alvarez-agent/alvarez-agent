@@ -717,7 +717,9 @@ _BUILTIN_SKINS: Dict[str, Dict[str, Any]] = {
             "banner_border": "#3B6CFF",
             "banner_title": "#FF2AD4",
             "banner_accent": "#9D5CFF",
-            "banner_dim": "#55507A",
+            # ~58% luminance like sunfire's fix — #55507A was unreadable once
+            # banner.py's [dim] markup dimmed it a second time.
+            "banner_dim": "#9A94C9",
             "banner_text": "#F2ECFF",
             "ui_accent": "#FF2AD4",
             "ui_label": "#9D5CFF",
@@ -736,7 +738,7 @@ _BUILTIN_SKINS: Dict[str, Dict[str, Any]] = {
             "status_bar_bad": "#FF4B77",
             "status_bar_critical": "#FF2A5F",
             "session_label": "#9D5CFF",
-            "session_border": "#55507A",
+            "session_border": "#9A94C9",
         },
         "spinner": {},
         "banner_logo": """[bold #FF2AD4] █████╗ ██╗     ██╗   ██╗ █████╗ ██████╗ ███████╗███████╗[/]
