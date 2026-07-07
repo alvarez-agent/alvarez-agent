@@ -10,7 +10,10 @@ import asyncio
 import queue
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 
+pytest.importorskip("aiohttp", reason="optional dependency 'aiohttp' not installed")
+from aiohttp import web
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -56,8 +59,6 @@ class TestSSEAgentCancelOnDisconnect:
             return {"final_response": "done"}, {"input_tokens": 10, "output_tokens": 5, "total_tokens": 15}
 
         async def run():
-            from aiohttp import web
-
             agent_task = asyncio.ensure_future(fake_agent())
 
             # Mock response that raises ConnectionResetError on second write
@@ -102,8 +103,6 @@ class TestSSEAgentCancelOnDisconnect:
             return {"final_response": "done"}, {"input_tokens": 10, "output_tokens": 5, "total_tokens": 15}
 
         async def run():
-            from aiohttp import web
-
             agent_task = asyncio.ensure_future(fake_agent())
             await asyncio.sleep(0)  # Let agent complete
 
@@ -135,8 +134,6 @@ class TestSSEAgentCancelOnDisconnect:
             return {}, {}
 
         async def run():
-            from aiohttp import web
-
             agent_task = asyncio.ensure_future(fake_agent())
 
             mock_response = AsyncMock(spec=web.StreamResponse)
@@ -165,8 +162,6 @@ class TestSSEAgentCancelOnDisconnect:
             return {"final_response": "done"}, {}
 
         async def run():
-            from aiohttp import web
-
             agent_task = asyncio.ensure_future(fake_agent())
             await asyncio.sleep(0)  # Let agent complete
 
@@ -214,8 +209,6 @@ class TestSSEAgentCancelOnDisconnect:
         mock_agent.interrupt = MagicMock()
 
         async def run():
-            from aiohttp import web
-
             agent_task = asyncio.ensure_future(fake_agent())
             agent_ref = [mock_agent]
 
@@ -257,8 +250,6 @@ class TestSSEAgentCancelOnDisconnect:
             return {}, {}
 
         async def run():
-            from aiohttp import web
-
             agent_task = asyncio.ensure_future(fake_agent())
 
             mock_response = AsyncMock(spec=web.StreamResponse)
@@ -280,8 +271,6 @@ class TestSSEAgentCancelOnDisconnect:
 
 def _capturing_response():
     """Mock StreamResponse that records all written SSE bytes as text."""
-    from aiohttp import web
-
     chunks: list = []
     resp = AsyncMock(spec=web.StreamResponse)
     resp.prepare = AsyncMock()
