@@ -106,11 +106,8 @@ def test_check_for_updates_official_ssh_origin_uses_https_probe(tmp_path):
     """Passive update checks must not trigger SSH auth for official installs.
 
     Asserts against ``banner._UPSTREAM_REPO_URL`` rather than a hardcoded
-    literal: that constant is currently a placeholder (still points at
-    NousResearch/hermes-agent — see the re-enable note in
-    ``check_for_updates``) until a real alvarez-agent upstream exists. This
-    test protects the SSH-avoidance mechanism itself, independent of exactly
-    which URL is configured.
+    literal so the test protects the SSH-avoidance mechanism itself,
+    independent of exactly which URL is configured.
     """
     import alvarez_cli.banner as banner
 
@@ -123,7 +120,7 @@ def test_check_for_updates_official_ssh_origin_uses_https_probe(tmp_path):
     def fake_run(cmd, **kwargs):
         calls.append(cmd)
         if cmd == ["git", "remote", "get-url", "origin"]:
-            return MagicMock(returncode=0, stdout="git@github.com:NousResearch/alvarez-agent.git\n")
+            return MagicMock(returncode=0, stdout="git@github.com:alvarez-agent/alvarez-agent.git\n")
         if cmd == ["git", "rev-parse", "HEAD"]:
             return MagicMock(returncode=0, stdout="local-sha\n")
         if cmd == [
@@ -162,7 +159,7 @@ def test_check_via_local_git_shallow_clone_behind_reports_no_count(tmp_path):
     def fake_run(cmd, **kwargs):
         calls.append(cmd)
         if cmd == ["git", "remote", "get-url", "origin"]:
-            return MagicMock(returncode=0, stdout="https://github.com/NousResearch/hermes-agent.git\n")
+            return MagicMock(returncode=0, stdout="https://github.com/alvarez-agent/alvarez-agent.git\n")
         if cmd == ["git", "rev-parse", "--is-shallow-repository"]:
             return MagicMock(returncode=0, stdout="true\n")
         if cmd[:2] == ["git", "fetch"]:
@@ -193,7 +190,7 @@ def test_check_via_local_git_shallow_clone_up_to_date(tmp_path):
 
     def fake_run(cmd, **kwargs):
         if cmd == ["git", "remote", "get-url", "origin"]:
-            return MagicMock(returncode=0, stdout="https://github.com/NousResearch/hermes-agent.git\n")
+            return MagicMock(returncode=0, stdout="https://github.com/alvarez-agent/alvarez-agent.git\n")
         if cmd == ["git", "rev-parse", "--is-shallow-repository"]:
             return MagicMock(returncode=0, stdout="true\n")
         if cmd[:2] == ["git", "fetch"]:
@@ -220,7 +217,7 @@ def test_check_via_local_git_full_clone_keeps_exact_count(tmp_path):
 
     def fake_run(cmd, **kwargs):
         if cmd == ["git", "remote", "get-url", "origin"]:
-            return MagicMock(returncode=0, stdout="https://github.com/NousResearch/hermes-agent.git\n")
+            return MagicMock(returncode=0, stdout="https://github.com/alvarez-agent/alvarez-agent.git\n")
         if cmd == ["git", "rev-parse", "--is-shallow-repository"]:
             return MagicMock(returncode=0, stdout="false\n")
         if cmd[:2] == ["git", "fetch"]:

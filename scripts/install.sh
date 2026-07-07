@@ -5,15 +5,22 @@
 # Installation script for Linux, macOS, and Android/Termux.
 # Uses uv for desktop/server installs and Python's stdlib venv + pip on Termux.
 #
-# Usage:
-#   curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash
+# Usage (the repo is private — clone with your GitHub credentials first):
+#   git clone git@github.com:alvarez-agent/alvarez-agent.git
+#   cd alvarez-agent && bash scripts/install.sh
 #
 # Or with options:
-#   curl -fsSL ... | bash -s -- --no-venv --skip-setup
+#   bash scripts/install.sh --no-venv --skip-setup
 #
+# When run from inside a checkout, the installer clones that checkout into the
+# managed install dir; otherwise it falls back to cloning from GitHub.
 # ============================================================================
 
 set -e
+
+# Captured before anything can cd; empty when piped (curl | bash / bash -s),
+# which disables local-checkout detection below.
+INSTALLER_SOURCE="${BASH_SOURCE[0]:-}"
 
 # Guard against environment leakage when the installer is launched from another
 # Python-driven tool session (e.g. Alvarez terminal tool). A pre-set PYTHONPATH
@@ -43,8 +50,8 @@ NC='\033[0m' # No Color
 BOLD='\033[1m'
 
 # Configuration
-REPO_URL_SSH="git@github.com:NousResearch/hermes-agent.git"
-REPO_URL_HTTPS="https://github.com/NousResearch/hermes-agent.git"
+REPO_URL_SSH="git@github.com:alvarez-agent/alvarez-agent.git"
+REPO_URL_HTTPS="https://github.com/alvarez-agent/alvarez-agent.git"
 ALVAREZ_HOME="${ALVAREZ_HOME:-$HOME/.alvarez}"
 # INSTALL_DIR is resolved AFTER arg parsing and OS detection so we can pick an
 # FHS-style layout for root installs.  Track whether the user gave us an
@@ -72,6 +79,7 @@ RUN_SETUP=true
 SKIP_BROWSER=false
 NO_SKILLS=false
 BRANCH="main"
+BRANCH_EXPLICIT=false
 INSTALL_COMMIT=""
 ENSURE_DEPS=""
 POSTINSTALL_MODE=false
@@ -111,6 +119,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         --branch|-Branch)
             BRANCH="$2"
+            BRANCH_EXPLICIT=true
             shift 2
             ;;
         --commit|-Commit)
@@ -240,6 +249,23 @@ json_escape() {
         -e 's/\\/\\\\/g' \
         -e 's/"/\\"/g'
 }
+
+# When the installer runs from inside a checkout of this repo, install from
+# that checkout instead of cloning GitHub — the repo is private, so the
+# checkout the user already cloned (with their own credentials) is the
+# reliable source. Silent on the miss path: piped invocations have an empty
+# INSTALLER_SOURCE, and --manifest/--json output must stay clean.
+LOCAL_SOURCE=""
+detect_local_source() {
+    [ -n "$INSTALLER_SOURCE" ] && [ -f "$INSTALLER_SOURCE" ] || return 0
+    local script_dir toplevel
+    script_dir="$(cd "$(dirname "$INSTALLER_SOURCE")" 2>/dev/null && pwd)" || return 0
+    toplevel="$(git -C "$script_dir" rev-parse --show-toplevel 2>/dev/null)" || return 0
+    [ -n "$toplevel" ] && [ -f "$toplevel/pyproject.toml" ] || return 0
+    grep -q '^name = "alvarez-agent"' "$toplevel/pyproject.toml" 2>/dev/null || return 0
+    LOCAL_SOURCE="$toplevel"
+}
+detect_local_source || true
 
 # npm rewrites tracked package-lock.json files non-deterministically during
 # `npm install` / `npm run pack`. On a managed install those diffs are never
@@ -527,7 +553,7 @@ detect_os() {
             OS="windows"
             DISTRO="windows"
             log_error "Windows detected. Please use the PowerShell installer:"
-            log_info "  iex (irm https://hermes-agent.nousresearch.com/install.ps1)"
+            log_info "  scripts\\install.ps1   (from a local clone of the repo)"
             exit 1
             ;;
         *)
@@ -1172,6 +1198,48 @@ show_manual_install_hint() {
 # Installation
 # ============================================================================
 
+# Clone from the local checkout detected by detect_local_source into
+# INSTALL_DIR, preserving the managed-layout contract (the managed install is
+# still an independent git clone that later update runs stash/fetch/reset).
+# Installing "in place" is deliberately not supported: the update path's
+# `git reset --hard origin/$BRANCH` would clobber a development checkout.
+clone_from_local_source() {
+    local src_branch="$BRANCH"
+    if [ "$BRANCH_EXPLICIT" = false ]; then
+        src_branch="$(git -C "$LOCAL_SOURCE" rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)"
+        if [ "$src_branch" = "HEAD" ]; then
+            log_warn "Local checkout is on a detached HEAD — installing 'main' instead"
+            src_branch="main"
+        fi
+    fi
+    if ! git -C "$LOCAL_SOURCE" rev-parse --verify --quiet "refs/heads/$src_branch" >/dev/null; then
+        log_error "Branch '$src_branch' not found in local checkout: $LOCAL_SOURCE"
+        log_info "Check out the branch you want to install, or pass --branch <name>."
+        exit 1
+    fi
+    if [ -n "$(git -C "$LOCAL_SOURCE" status --porcelain 2>/dev/null)" ]; then
+        log_warn "Local checkout has uncommitted changes — only committed state on '$src_branch' is installed."
+    fi
+    log_info "Installing from local checkout $LOCAL_SOURCE (branch: $src_branch)..."
+    # No --depth: git ignores it for local-path clones (objects are hardlinked,
+    # so a full clone is cheap and the warning is just noise).
+    if ! git clone --branch "$src_branch" "$LOCAL_SOURCE" "$INSTALL_DIR"; then
+        log_error "Failed to clone from local checkout"
+        exit 1
+    fi
+    BRANCH="$src_branch"
+    local source_origin
+    source_origin="$(git -C "$LOCAL_SOURCE" remote get-url origin 2>/dev/null || true)"
+    if [ -n "$source_origin" ]; then
+        # Future update runs fetch from origin — point it at the real remote
+        # (the user's credentials already work there; they cloned with them).
+        git -C "$INSTALL_DIR" remote set-url origin "$source_origin"
+        log_success "Cloned from local checkout (origin → $source_origin)"
+    else
+        log_warn "Local checkout has no 'origin' remote — future updates will pull from $LOCAL_SOURCE"
+    fi
+}
+
 clone_repo() {
     log_info "Installing to $INSTALL_DIR..."
 
@@ -1267,6 +1335,8 @@ clone_repo() {
             log_info "Remove it or choose a different directory with --dir"
             exit 1
         fi
+    elif [ -n "$LOCAL_SOURCE" ]; then
+        clone_from_local_source
     else
         # Try SSH first (for private repo access), fall back to HTTPS
         # GIT_SSH_COMMAND disables interactive prompts and sets a short timeout
