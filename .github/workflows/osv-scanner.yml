@@ -30,7 +30,15 @@ on:
   workflow_dispatch:
 
 permissions:
+  # google/osv-scanner-action's reusable workflow declares these three scopes
+  # unconditionally in its own top-level `permissions:`, regardless of the
+  # upload-sarif input. GitHub validates the whole reusable-workflow call
+  # chain before starting any job, so granting anything less than this here
+  # (or in ci.yml, which caps what this file can pass down) makes the entire
+  # run fail with startup_failure and zero jobs — not just skip SARIF upload.
+  actions: read
   contents: read
+  security-events: write
 
 jobs:
   scan:
