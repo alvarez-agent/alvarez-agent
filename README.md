@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/banner.png" alt="Alvarez Agent" width="100%">
+  <img src="assets/banner.png" alt="Alvarez" width="100%">
 </p>
 
 # Alvarez Agent ☤
